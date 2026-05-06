@@ -88,12 +88,19 @@ jobs:
 
       - name: Deploy to staging slot
         run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
           az webapp config container set \
             --name autodrive-chatbot \
             --resource-group autodrive-rg \
             --slot staging \
-            --docker-custom-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --docker-registry-server-url https://ghcr.io
+            --docker-custom-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA} \
+            --docker-registry-server-url https://ghcr.io \
+            --docker-registry-server-user ${{ github.repository_owner }} \
+            --docker-registry-server-password ${{ secrets.GHCR_TOKEN }}
+          az webapp restart \
+            --name autodrive-chatbot \
+            --resource-group autodrive-rg \
+            --slot staging
 
       - name: Wait for staging to be healthy
         run: |
