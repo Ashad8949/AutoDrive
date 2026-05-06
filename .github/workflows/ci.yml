@@ -24,7 +24,7 @@ jobs:
 
       - name: Run tests
         env:
-          OPENAI_API_KEY: sk-test-fake-key-for-ci
+          GROQ_API_KEY: sk-test-fake-groq-key-for-ci
         run: pytest tests/ -v --tb=short
 
       - name: Verify Docker build
