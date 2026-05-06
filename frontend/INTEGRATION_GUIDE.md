@@ -1,41 +1,122 @@
-# AutoDrive Frontend Integration Guide
+# AutoDrive AI Chatbot — Integration Guide
 
-## What to integrate
-
-Two files from this folder go into the frontend repo:
-- `ChatWidget.tsx` — floating chat bubble (bottom-right corner, every page)
-- `VoicePage.tsx` — full-screen voice assistant (dedicated `/voice` route)
+**Chatbot backend URL:** `https://autodrive-chatbot.azurewebsites.net`
 
 ---
 
-## Step 1 — Install dependencies
+## Files to copy
+
+From `https://github.com/Ashad8949/AutoDrive/tree/master/frontend`:
+
+| File | Copy to |
+|---|---|
+| `ChatWidget.tsx` | `src/components/ChatWidget.tsx` |
+| `VoicePage.tsx` | `src/app/voice/page.tsx` (or `src/pages/voice.tsx`) |
+
+---
+
+## Step 1 — Copy the files
 
 ```bash
-npm install react react-dom
-npm install --save-dev @types/react @types/react-dom
+# In your project root
+curl -o src/components/ChatWidget.tsx \
+  https://raw.githubusercontent.com/Ashad8949/AutoDrive/master/frontend/ChatWidget.tsx
+
+curl -o src/components/VoicePage.tsx \
+  https://raw.githubusercontent.com/Ashad8949/AutoDrive/master/frontend/VoicePage.tsx
 ```
 
 ---
 
 ## Step 2 — Add ChatWidget to your root layout
 
-In your root layout file (e.g. `App.tsx` or `Layout.tsx`):
+Since your project is **Next.js 14 with App Router**, add it to `src/app/layout.tsx`:
 
 ```tsx
-import { ChatWidget } from './ChatWidget';
+// src/app/layout.tsx
+import { ChatWidget } from '@/components/ChatWidget';
 
-export default function App() {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+
+        {/* AutoDrive AI — appears on every page */}
+        <ChatWidget
+          apiUrl="https://autodrive-chatbot.azurewebsites.net"
+          title="AutoDrive AI"
+          voiceEnabled={true}
+          onCarMentioned={(carId) => {
+            // Optional: navigate to car details when bot mentions a car
+            window.location.href = `/cars/${carId}`;
+          }}
+        />
+      </body>
+    </html>
+  );
+}
+```
+
+> If you use **Pages Router** (`pages/`), add it to `pages/_app.tsx` instead:
+> ```tsx
+> import { ChatWidget } from '../components/ChatWidget';
+> export default function App({ Component, pageProps }) {
+>   return <>
+>     <Component {...pageProps} />
+>     <ChatWidget apiUrl="https://autodrive-chatbot.azurewebsites.net" />
+>   </>;
+> }
+> ```
+
+---
+
+## Step 3 — Add the Voice Assistant page
+
+**App Router** — create `src/app/voice/page.tsx`:
+
+```tsx
+'use client';
+import { VoicePage } from '@/components/VoicePage';
+
+export default function Voice() {
+  return <VoicePage apiUrl="https://autodrive-chatbot.azurewebsites.net" />;
+}
+```
+
+**Pages Router** — create `pages/voice.tsx`:
+
+```tsx
+import { VoicePage } from '../components/VoicePage';
+export default function Voice() {
+  return <VoicePage apiUrl="https://autodrive-chatbot.azurewebsites.net" />;
+}
+```
+
+Add a nav link anywhere in your navbar:
+```tsx
+<a href="/voice">🎤 Voice Assistant</a>
+```
+
+---
+
+## Step 4 — Handle the `onCarMentioned` callback (deep-link feature)
+
+When the bot mentions a car (e.g. "Hyundai Creta"), it emits a `car_id`. Wire it up for one-click navigation:
+
+```tsx
+import { useRouter } from 'next/navigation'; // App Router
+// OR: import { useRouter } from 'next/router'; // Pages Router
+
+function Layout({ children }) {
+  const router = useRouter();
+
   return (
     <>
-      {/* your existing app */}
-      <YourRouter />
-
-      {/* AutoDrive AI chat — appears on every page */}
+      {children}
       <ChatWidget
         apiUrl="https://autodrive-chatbot.azurewebsites.net"
-        title="AutoDrive AI Assistant"
-        accentColor="#1a56db"
-        voiceEnabled={true}
+        onCarMentioned={(carId) => router.push(`/cars/${carId}`)}
       />
     </>
   );
@@ -44,69 +125,37 @@ export default function App() {
 
 ---
 
-## Step 3 — Add the Voice Assistant page
+## Step 5 — Environment variable (recommended)
 
-In your router (React Router v6 example):
-
-```tsx
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import VoicePage from './VoicePage';
-
-<Routes>
-  {/* your existing routes */}
-  <Route path="/" element={<HomePage />} />
-  <Route path="/cars" element={<CarsPage />} />
-
-  {/* Voice assistant page */}
-  <Route
-    path="/voice"
-    element={<VoicePage apiUrl="https://autodrive-chatbot.azurewebsites.net" />}
-  />
-</Routes>
+```bash
+# .env.local
+NEXT_PUBLIC_CHATBOT_URL=https://autodrive-chatbot.azurewebsites.net
 ```
 
-Add a nav link to the voice page:
 ```tsx
-<a href="/voice">🎤 Voice Assistant</a>
+<ChatWidget apiUrl={process.env.NEXT_PUBLIC_CHATBOT_URL} />
+<VoicePage apiUrl={process.env.NEXT_PUBLIC_CHATBOT_URL} />
 ```
 
 ---
 
-## Step 4 — Environment variable (recommended)
-
-Instead of hardcoding the API URL, use an env variable:
-
-```tsx
-// .env
-VITE_CHATBOT_URL=https://autodrive-chatbot.azurewebsites.net
-
-// In your component
-<ChatWidget apiUrl={import.meta.env.VITE_CHATBOT_URL} />
-<VoicePage apiUrl={import.meta.env.VITE_CHATBOT_URL} />
-```
-
----
-
-## API Endpoints used
+## API Endpoints
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `POST /chat/stream` | POST | Streaming text chat (SSE) |
+| `POST /chat/stream` | POST | Streaming chat (SSE) |
 | `POST /voice/transcribe` | POST | Speech → text (Groq Whisper) |
-| `GET /health` | GET | Check if chatbot is alive |
+| `POST /inventory/refresh` | POST | Force-refresh car inventory |
+| `GET /health` | GET | Health check |
 
-### Chat request format
-```json
-POST /chat/stream
-{ "message": "Show me SUVs under $40k", "session_id": "uuid-string" }
-```
+### SSE Event types your frontend receives:
 
-### Voice transcription format
 ```
-POST /voice/transcribe
-Content-Type: multipart/form-data
-Body: audio file (webm, mp3, wav)
-Response: { "transcript": "show me SUVs under 40k" }
+data: {"token": "The Hyundai "}     ← stream token to UI
+data: {"token": "Creta "}
+data: {"car_id": "2"}               ← bot mentioned car ID 2 → deep-link to /cars/2
+data: {"action": "BOOK_TEST_DRIVE 2"} ← show booking widget
+data: {"done": true}                ← stream complete
 ```
 
 ---
@@ -116,18 +165,22 @@ Response: { "transcript": "show me SUVs under 40k" }
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `apiUrl` | string | `http://localhost:8002` | Chatbot backend URL |
-| `title` | string | `AutoDrive AI Assistant` | Header text |
-| `accentColor` | string | `#1a56db` | Brand colour |
-| `voiceEnabled` | boolean | `true` | Auto-speak AI responses |
+| `title` | string | `AutoDrive AI` | Header text |
+| `voiceEnabled` | boolean | `true` | Speak AI responses aloud |
+| `onCarMentioned` | `(id: string) => void` | — | Called when bot names a car |
 
 ---
+
+## CORS
+
+The backend already allows all origins (`*`). No CORS config needed on your side.
 
 ## Browser support
 
 | Feature | Chrome | Edge | Firefox | Safari |
 |---|---|---|---|---|
-| Chat (text) | ✅ | ✅ | ✅ | ✅ |
+| Chat | ✅ | ✅ | ✅ | ✅ |
 | Mic recording | ✅ | ✅ | ✅ | ✅ |
 | TTS (speak) | ✅ | ✅ | ✅ | ✅ |
 
-> Microphone requires HTTPS in production (works on localhost without HTTPS).
+> Microphone requires HTTPS in production (localhost works without HTTPS).
