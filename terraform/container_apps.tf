@@ -39,12 +39,12 @@ resource "azurerm_linux_web_app" "chatbot" {
 
   app_settings = {
     # ── LLM ─────────────────────────────────────────────────────────
-    GROQ_API_KEY  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault.main.vault_uri}secrets/groq-api-key/)"
+    GROQ_API_KEY  = var.groq_api_key
     GROQ_MODEL    = "llama-3.3-70b-versatile"
 
     # ── Azure OpenAI (embeddings fallback) ──────────────────────────
     AZURE_OPENAI_ENDPOINT             = data.azurerm_cognitive_account.openai.endpoint
-    AZURE_OPENAI_KEY                  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault.main.vault_uri}secrets/azure-openai-key/)"
+    AZURE_OPENAI_KEY                  = var.azure_openai_key
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT = "text-embedding-3-large"
 
     # ── App Insights telemetry ───────────────────────────────────────
