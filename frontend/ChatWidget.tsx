@@ -1,20 +1,14 @@
 /**
- * AutoDrive AI Chat Widget — with Voice Support
+ * AutoDrive AI Chat Widget
+ * Styled to match autodriveai.duckdns.org — Tailwind blue/slate palette, light theme.
  *
  * Usage:
  *   import { ChatWidget } from './ChatWidget';
  *   <ChatWidget apiUrl="https://autodrive-chatbot.azurewebsites.net" />
- *
- * Features:
- *  - Floating button bottom-right
- *  - Streaming AI responses
- *  - 🎤 Mic button — click to record, click again to send (Groq Whisper STT)
- *  - 🔊 AI responses spoken aloud automatically (browser TTS)
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-// ── Types ─────────────────────────────────────────────────────────────
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -24,89 +18,49 @@ interface Message {
 interface ChatWidgetProps {
   apiUrl?: string;
   title?: string;
-  accentColor?: string;
-  /** If true, AI responses are spoken aloud automatically */
   voiceEnabled?: boolean;
+  /** Called when the LLM mentions a car — receives its id for deep-linking */
+  onCarMentioned?: (carId: string) => void;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// ── Design tokens (mirror the site's Tailwind palette) ────────────────
+const C = {
+  blue600:   '#2563eb',
+  blue700:   '#1d4ed8',
+  blue50:    '#eff6ff',
+  blue100:   '#dbeafe',
+  violet600: '#7c3aed',
+  slate900:  '#0f172a',
+  slate800:  '#1e293b',
+  slate600:  '#475569',
+  slate400:  '#94a3b8',
+  slate200:  '#e2e8f0',
+  slate100:  '#f1f5f9',
+  slate50:   '#f8fafc',
+  white:     '#ffffff',
+  green600:  '#16a34a',
+  green50:   '#f0fdf4',
+};
+
+// ── TTS helpers ───────────────────────────────────────────────────────
 function speak(text: string) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#]/g, '').replace(/\[ACTION:[^\]]+\]/g, '');
+  const clean = text.replace(/[*_`#]/g, '').replace(/\[(?:ACTION|CAR_ID):[^\]]+\]/g, '').replace(/<[^>]+>/g, '');
   const utt = new SpeechSynthesisUtterance(clean);
   utt.rate = 1.05;
-  utt.pitch = 1;
   window.speechSynthesis.speak(utt);
 }
-
 function stopSpeaking() {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
-// ── Styles ────────────────────────────────────────────────────────────
-const S = {
-  fab: (color: string): React.CSSProperties => ({
-    position: 'fixed', bottom: 24, right: 24,
-    width: 60, height: 60, borderRadius: '50%',
-    backgroundColor: color, color: 'white', border: 'none',
-    cursor: 'pointer', fontSize: 24,
-    boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 9999,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'transform 0.15s',
-  }),
-  panel: (): React.CSSProperties => ({
-    position: 'fixed', bottom: 96, right: 24,
-    width: 380, height: 540,
-    backgroundColor: '#fff', borderRadius: 16,
-    boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-    display: 'flex', flexDirection: 'column',
-    zIndex: 9998, overflow: 'hidden',
-    animation: 'slideUp 0.2s ease',
-  }),
-  header: (color: string): React.CSSProperties => ({
-    backgroundColor: color, color: 'white',
-    padding: '14px 18px', fontWeight: 600, fontSize: 15,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  }),
-  messages: (): React.CSSProperties => ({
-    flex: 1, overflowY: 'auto', padding: 16,
-    display: 'flex', flexDirection: 'column', gap: 10,
-  }),
-  bubble: (role: 'user' | 'assistant', color: string): React.CSSProperties => ({
-    alignSelf: role === 'user' ? 'flex-end' : 'flex-start',
-    maxWidth: '82%',
-    backgroundColor: role === 'user' ? color : '#f3f4f6',
-    color: role === 'user' ? 'white' : '#111827',
-    padding: '10px 14px',
-    borderRadius: role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-    fontSize: 14, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-  }),
-  inputRow: (): React.CSSProperties => ({
-    padding: '10px 12px', borderTop: '1px solid #e5e7eb',
-    display: 'flex', gap: 6, alignItems: 'flex-end',
-  }),
-  textarea: (): React.CSSProperties => ({
-    flex: 1, padding: '9px 13px', borderRadius: 20,
-    border: '1px solid #d1d5db', outline: 'none',
-    fontSize: 14, fontFamily: 'inherit', resize: 'none', lineHeight: 1.4,
-  }),
-  iconBtn: (bg: string, disabled = false): React.CSSProperties => ({
-    width: 38, height: 38, flexShrink: 0,
-    backgroundColor: bg, color: 'white', border: 'none',
-    borderRadius: '50%', cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.45 : 1, display: 'flex',
-    alignItems: 'center', justifyContent: 'center', fontSize: 16,
-    transition: 'opacity 0.15s',
-  }),
-};
-
 // ── Component ─────────────────────────────────────────────────────────
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
   apiUrl = 'http://localhost:8002',
-  title = 'AutoDrive AI Assistant',
-  accentColor = '#1a56db',
+  title = 'AutoDrive AI',
   voiceEnabled = true,
+  onCarMentioned,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -122,9 +76,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-  useEffect(() => { if (isOpen) inputRef.current?.focus(); }, [isOpen]);
+  useEffect(() => { if (isOpen) setTimeout(() => inputRef.current?.focus(), 100); }, [isOpen]);
 
-  // ── Send text message ──────────────────────────────────────────────
+  // ── Send message ────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || isStreaming) return;
@@ -163,20 +117,20 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                 return u;
               });
             }
-          } catch { /* skip malformed */ }
+            if (payload.car_id && onCarMentioned) onCarMentioned(payload.car_id);
+          } catch { /* skip */ }
         }
       }
 
-      // Speak the full response aloud
       if (voiceEnabled && fullResponse) {
         setIsSpeaking(true);
         speak(fullResponse);
-        setTimeout(() => setIsSpeaking(false), fullResponse.length * 55);
+        setTimeout(() => setIsSpeaking(false), Math.min(fullResponse.length * 55, 15000));
       }
     } catch {
       setMessages(prev => {
         const u = [...prev];
-        u[u.length - 1] = { ...u[u.length - 1], content: 'Sorry, something went wrong. Please try again.' };
+        u[u.length - 1] = { ...u[u.length - 1], content: '⚠️ Could not connect. Please try again.' };
         return u;
       });
     } finally {
@@ -187,9 +141,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         return u;
       });
     }
-  }, [input, isStreaming, apiUrl, sessionId, voiceEnabled]);
+  }, [input, isStreaming, apiUrl, sessionId, voiceEnabled, onCarMentioned]);
 
-  // ── Voice recording ────────────────────────────────────────────────
+  // ── Voice recording ─────────────────────────────────────────────────
   const toggleRecording = async () => {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
@@ -211,7 +165,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           const { transcript } = await res.json();
           if (transcript) sendMessage(transcript);
         } catch {
-          setMessages(prev => [...prev, { role: 'assistant', content: 'Could not transcribe audio. Please try again.' }]);
+          setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Could not transcribe audio.' }]);
         }
       };
       mr.start();
@@ -226,80 +180,216 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  // ── Suggestion chips ────────────────────────────────────────────────
+  const suggestions = [
+    'SUVs under ₹20 lakh',
+    'Best electric cars?',
+    'Compare Creta vs Seltos',
+    'Lowest mileage cars',
+  ];
+
   return (
     <>
       <style>{`
-        @keyframes slideUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5) } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0) } }
+        @keyframes slideUp   { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes micPulse  { 0%,100% { box-shadow:0 0 0 0 rgba(220,38,38,.4) } 50% { box-shadow:0 0 0 8px rgba(220,38,38,0) } }
+        @keyframes fadeIn    { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin { to { transform:rotate(360deg) } }
+        .ad-msg { animation: fadeIn .25s ease; }
+        .ad-textarea:focus { outline:none; border-color:${C.blue600}; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+        .ad-textarea::placeholder { color:${C.slate400}; }
+        .ad-fab:hover { transform:scale(1.08); box-shadow:0 8px 30px rgba(37,99,235,.4); }
+        .ad-send:hover:not(:disabled) { background:${C.blue700}; transform:scale(1.04); }
+        .ad-chip:hover { background:${C.blue50}; border-color:${C.blue600}; color:${C.blue600}; }
+        .ad-scroll::-webkit-scrollbar { width:4px; }
+        .ad-scroll::-webkit-scrollbar-track { background:transparent; }
+        .ad-scroll::-webkit-scrollbar-thumb { background:${C.slate200}; border-radius:2px; }
       `}</style>
 
-      {/* Floating toggle button */}
-      <button style={S.fab(accentColor)} onClick={() => { setIsOpen(o => !o); stopSpeaking(); }} aria-label="Toggle chat">
-        {isOpen ? '✕' : '💬'}
+      {/* ── FAB ── */}
+      <button
+        className="ad-fab"
+        onClick={() => { setIsOpen(o => !o); stopSpeaking(); }}
+        aria-label="Toggle AutoDrive AI chat"
+        style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          width: 56, height: 56, borderRadius: '50%',
+          background: `linear-gradient(135deg, ${C.blue600}, ${C.violet600})`,
+          border: 'none', cursor: 'pointer', color: 'white',
+          fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(37,99,235,.35)',
+          transition: 'transform .2s, box-shadow .2s',
+        }}
+      >
+        {isOpen ? '✕' : '🚗'}
       </button>
 
+      {/* ── Chat panel ── */}
       {isOpen && (
-        <div style={S.panel()}>
+        <div style={{
+          position: 'fixed', bottom: 92, right: 24, zIndex: 9998,
+          width: 390, height: 560, borderRadius: 20,
+          background: C.white,
+          boxShadow: '0 20px 60px rgba(15,23,42,.15), 0 4px 16px rgba(15,23,42,.08)',
+          border: `1px solid ${C.slate200}`,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          animation: 'slideUp .25s ease',
+        }}>
+
           {/* Header */}
-          <div style={S.header(accentColor)}>
-            <span>🚗 {title}</span>
-            {isSpeaking && (
-              <button onClick={stopSpeaking} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 12, color: 'white', padding: '2px 10px', cursor: 'pointer', fontSize: 12 }}>
-                🔊 Stop
-              </button>
-            )}
+          <div style={{
+            background: `linear-gradient(135deg, ${C.blue600}, ${C.violet600})`,
+            padding: '14px 18px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'rgba(255,255,255,.18)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+              }}>🤖</div>
+              <div>
+                <div style={{ color: 'white', fontWeight: 700, fontSize: 14, letterSpacing: '-.2px' }}>{title}</div>
+                <div style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
+                  Online · Powered by LLaMA 3.3
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {isSpeaking && (
+                <button onClick={stopSpeaking} style={{
+                  background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: 8,
+                  color: 'white', padding: '3px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                }}>🔊 Stop</button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
-          <div style={S.messages()}>
+          <div className="ad-scroll" style={{
+            flex: 1, overflowY: 'auto', padding: 16,
+            display: 'flex', flexDirection: 'column', gap: 12,
+            background: C.slate50,
+          }}>
             {messages.length === 0 && (
-              <p style={{ color: '#9ca3af', textAlign: 'center', marginTop: 48, fontSize: 14 }}>
-                Hi! Ask me about our cars, prices, or book a test drive.<br />
-                <span style={{ fontSize: 12 }}>🎤 Use the mic to speak</span>
-              </p>
+              <div style={{ padding: '20px 0' }}>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>🚗</div>
+                  <p style={{ color: C.slate600, fontSize: 13, lineHeight: 1.6 }}>
+                    Hi! I know every car in our inventory.<br />Ask me anything or try a suggestion:
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                  {suggestions.map(s => (
+                    <button key={s} className="ad-chip" onClick={() => sendMessage(s)} style={{
+                      padding: '5px 12px', borderRadius: 9999,
+                      background: C.white, border: `1px solid ${C.slate200}`,
+                      color: C.slate600, fontSize: 12, cursor: 'pointer',
+                      transition: 'all .2s', fontFamily: 'inherit',
+                    }}>{s}</button>
+                  ))}
+                </div>
+              </div>
             )}
+
             {messages.map((msg, i) => (
-              <div key={i} style={S.bubble(msg.role, accentColor)}>
-                {msg.content || (msg.isStreaming ? '▋' : '')}
+              <div key={i} className="ad-msg" style={{
+                display: 'flex',
+                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                gap: 8, alignItems: 'flex-end',
+              }}>
+                {msg.role === 'assistant' && (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                    background: `linear-gradient(135deg, ${C.blue600}, ${C.violet600})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13,
+                  }}>🤖</div>
+                )}
+                <div style={{
+                  maxWidth: '78%',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  background: msg.role === 'user'
+                    ? `linear-gradient(135deg, ${C.blue600}, ${C.violet600})`
+                    : C.white,
+                  color: msg.role === 'user' ? 'white' : C.slate800,
+                  fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  border: msg.role === 'assistant' ? `1px solid ${C.slate200}` : 'none',
+                  boxShadow: msg.role === 'assistant' ? '0 1px 4px rgba(15,23,42,.06)' : 'none',
+                }}>
+                  {msg.content || (msg.isStreaming ? (
+                    <span style={{ display: 'inline-flex', gap: 3, padding: '2px 0' }}>
+                      {[0, 150, 300].map(d => (
+                        <span key={d} style={{
+                          width: 6, height: 6, borderRadius: '50%', background: C.slate400,
+                          display: 'inline-block',
+                          animation: `spin 1s linear ${d}ms infinite`,
+                        }} />
+                      ))}
+                    </span>
+                  ) : '')}
+                </div>
               </div>
             ))}
             <div ref={bottomRef} />
           </div>
 
           {/* Input row */}
-          <div style={S.inputRow()}>
-            {/* Mic button */}
-            <button
-              onClick={toggleRecording}
-              style={{
-                ...S.iconBtn(isRecording ? '#ef4444' : '#6b7280'),
-                animation: isRecording ? 'pulse 1s infinite' : 'none',
-              }}
-              title={isRecording ? 'Stop recording' : 'Speak'}
-            >
-              🎤
-            </button>
+          <div style={{
+            padding: '10px 14px 12px',
+            background: C.white,
+            borderTop: `1px solid ${C.slate100}`,
+          }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              {/* Mic */}
+              <button onClick={toggleRecording} style={{
+                width: 36, height: 36, flexShrink: 0, borderRadius: 10,
+                background: isRecording ? '#fee2e2' : C.slate100,
+                border: `1px solid ${isRecording ? '#fca5a5' : C.slate200}`,
+                cursor: 'pointer', fontSize: 15, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                animation: isRecording ? 'micPulse 1s infinite' : 'none',
+                transition: 'all .2s',
+              }} title={isRecording ? 'Stop recording' : 'Voice input'}>🎤</button>
 
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isRecording ? 'Listening…' : 'Ask about cars… (Enter to send)'}
-              rows={1}
-              disabled={isStreaming || isRecording}
-              style={S.textarea()}
-            />
+              <textarea
+                className="ad-textarea"
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isRecording ? 'Listening…' : 'Ask about any car…'}
+                rows={1}
+                disabled={isStreaming || isRecording}
+                style={{
+                  flex: 1, padding: '9px 13px', borderRadius: 12,
+                  border: `1.5px solid ${C.slate200}`, background: C.slate50,
+                  fontSize: 13.5, fontFamily: 'inherit', resize: 'none',
+                  lineHeight: 1.5, color: C.slate800, transition: 'border-color .2s, box-shadow .2s',
+                }}
+              />
 
-            {/* Send button */}
-            <button
-              onClick={() => sendMessage()}
-              disabled={isStreaming || !input.trim()}
-              style={S.iconBtn(accentColor, isStreaming || !input.trim())}
-              aria-label="Send"
-            >
-              ➤
-            </button>
+              {/* Send */}
+              <button
+                className="ad-send"
+                onClick={() => sendMessage()}
+                disabled={isStreaming || !input.trim()}
+                style={{
+                  width: 36, height: 36, flexShrink: 0, borderRadius: 10,
+                  background: isStreaming || !input.trim() ? C.slate200 : C.blue600,
+                  border: 'none', cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
+                  color: isStreaming || !input.trim() ? C.slate400 : 'white',
+                  fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all .2s',
+                }}
+                aria-label="Send message"
+              >➤</button>
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 11, color: C.slate400, textAlign: 'center' }}>
+              Enter to send · Shift+Enter for new line · 🎤 voice input
+            </p>
           </div>
         </div>
       )}
