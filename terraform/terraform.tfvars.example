@@ -1,0 +1,13 @@
+resource_group_name   = "autodrive-rg"
+location              = "Southeast Asia"
+
+openai_resource_name  = "autodrive-openai"
+openai_resource_group = "autodrive-rg"
+
+chatbot_image   = "ghcr.io/<your-github-username>/autodrive-chatbot:latest"
+alert_email     = "your-email@example.com"
+app_service_sku = "S1"   # S1 for autoscale+slots; B1 to save credits after demo
+
+# Secrets — pass as env vars, never commit real values:
+# export TF_VAR_groq_api_key="gsk_..."
+# export TF_VAR_azure_openai_key="..."

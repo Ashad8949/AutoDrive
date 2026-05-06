@@ -1,0 +1,166 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/autodrive-chatbot
+
+jobs:
+  # ── Stage 1: Test ──────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        env:
+          GROQ_API_KEY: sk-test-fake
+        run: pytest tests/ -v --tb=short
+
+  # ── Stage 2: Build & Push image ───────────────────────────────────
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+  # ── Stage 3: Deploy to staging slot ───────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment: staging
+
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to staging slot
+        run: |
+          az webapp config container set \
+            --name autodrive-chatbot \
+            --resource-group autodrive-rg \
+            --slot staging \
+            --docker-custom-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --docker-registry-server-url https://ghcr.io
+
+      - name: Wait for staging to be healthy
+        run: |
+          echo "Waiting for staging slot to start..."
+          for i in $(seq 1 12); do
+            STATUS=$(az webapp show \
+              --name autodrive-chatbot \
+              --resource-group autodrive-rg \
+              --slot staging \
+              --query "state" -o tsv)
+            echo "Attempt $i: $STATUS"
+            if [ "$STATUS" = "Running" ]; then
+              # Check health endpoint
+              SLOT_URL=$(az webapp show \
+                --name autodrive-chatbot \
+                --resource-group autodrive-rg \
+                --slot staging \
+                --query "defaultHostName" -o tsv)
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://$SLOT_URL/health" || echo "000")
+              echo "Health check HTTP $HTTP_CODE"
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "Staging is healthy!"
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "Staging health check failed after 3 minutes"
+          exit 1
+
+  # ── Stage 4: Swap staging → production ────────────────────────────
+  deploy-production:
+    name: Swap → Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production
+
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Swap staging → production (zero-downtime)
+        run: |
+          az webapp deployment slot swap \
+            --name autodrive-chatbot \
+            --resource-group autodrive-rg \
+            --slot staging \
+            --target-slot production
+
+      - name: Verify production health
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://autodrive-chatbot.azurewebsites.net/health" || echo "000")
+          echo "Production health: HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Production unhealthy — rolling back!"
+            az webapp deployment slot swap \
+              --name autodrive-chatbot \
+              --resource-group autodrive-rg \
+              --slot staging \
+              --target-slot production
+            exit 1
+          fi
+          echo "Production is healthy!"
+
+      - name: Post deployment summary
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://autodrive-chatbot.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+          echo "- **Health:** ✅ Passing" >> $GITHUB_STEP_SUMMARY

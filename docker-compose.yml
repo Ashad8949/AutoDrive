@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  chatbot:
+    build: .
+    ports:
+      - "8002:8002"
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./seed_data.json:/app/seed_data.json:ro
+      - faiss_data:/app/faiss_index
+    restart: unless-stopped
+
+volumes:
+  faiss_data:
