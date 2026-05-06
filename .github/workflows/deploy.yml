@@ -89,14 +89,24 @@ jobs:
       - name: Deploy to staging slot
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
-          az webapp config container set \
-            --name autodrive-chatbot \
-            --resource-group autodrive-rg \
-            --slot staging \
-            --docker-custom-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA} \
-            --docker-registry-server-url https://ghcr.io \
-            --docker-registry-server-user ${{ github.repository_owner }} \
-            --docker-registry-server-password ${{ secrets.GHCR_TOKEN }}
+          echo "Deploying image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          # Retry up to 3 times in case of transient Conflict errors
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt..."
+            if az webapp config container set \
+              --name autodrive-chatbot \
+              --resource-group autodrive-rg \
+              --slot staging \
+              --container-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA} \
+              --container-registry-url https://ghcr.io \
+              --container-registry-user ${{ github.repository_owner }} \
+              --container-registry-password ${{ secrets.GHCR_TOKEN }}; then
+              echo "Container configured successfully"
+              break
+            fi
+            echo "Attempt $attempt failed, waiting 20s..."
+            sleep 20
+          done
           az webapp restart \
             --name autodrive-chatbot \
             --resource-group autodrive-rg \
