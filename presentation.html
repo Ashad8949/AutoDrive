@@ -5,632 +5,411 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AutoDrive AI — Cloud Project Presentation</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --blue: #3b82f6; --violet: #8b5cf6; --green: #10b981;
-    --orange: #f59e0b; --red: #ef4444; --cyan: #06b6d4;
-    --dark: #0a0e1a; --card: #1a1f35; --border: rgba(255,255,255,0.08);
-    --text: #f1f5f9; --muted: #94a3b8;
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --blue:#3b82f6;--violet:#8b5cf6;--green:#10b981;--orange:#f59e0b;
+    --red:#ef4444;--cyan:#06b6d4;--dark:#0a0e1a;--card:#1a1f35;
+    --border:rgba(255,255,255,.08);--text:#f1f5f9;--muted:#94a3b8;
   }
-
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--dark);
-         color: var(--text); overflow: hidden; height: 100vh; }
-
-  /* ── Slide Engine ── */
-  .deck { width: 100vw; height: 100vh; position: relative; }
-  .slide { position: absolute; inset: 0; display: none; padding: 60px 80px;
-           flex-direction: column; justify-content: center; overflow: hidden; }
-  .slide.active { display: flex; animation: fadeIn .35s ease; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
-
-  /* ── Backgrounds ── */
-  .bg-1 { background: radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.18) 0%, transparent 60%),
-                       radial-gradient(ellipse at 80% 50%, rgba(139,92,246,.14) 0%, transparent 60%), var(--dark); }
-  .bg-2 { background: radial-gradient(ellipse at 10% 80%, rgba(16,185,129,.12) 0%, transparent 55%), var(--dark); }
-  .bg-3 { background: radial-gradient(ellipse at 90% 20%, rgba(245,158,11,.12) 0%, transparent 55%), var(--dark); }
-  .bg-4 { background: radial-gradient(ellipse at 50% 100%, rgba(239,68,68,.1) 0%, transparent 55%), var(--dark); }
-
-  /* ── Typography ── */
-  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-             color: var(--blue); margin-bottom: 14px; }
-  h1 { font-size: 58px; font-weight: 900; line-height: 1.05; letter-spacing: -1.5px; }
-  h2 { font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-bottom: 32px; }
-  h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-  .grad { background: linear-gradient(135deg, var(--blue), var(--violet));
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-  .grad-green { background: linear-gradient(135deg, var(--green), var(--cyan));
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-  .subtitle { font-size: 20px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
-  p { color: var(--muted); font-size: 15px; line-height: 1.7; }
-
-  /* ── Layout helpers ── */
-  .cols { display: grid; gap: 28px; }
-  .cols-2 { grid-template-columns: 1fr 1fr; }
-  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-  .cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-  .cols-60-40 { grid-template-columns: 60fr 40fr; }
-  .cols-40-60 { grid-template-columns: 40fr 60fr; }
-
-  /* ── Cards ── */
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-          padding: 24px; position: relative; overflow: hidden; }
-  .card::before { content: ''; position: absolute; inset: 0; border-radius: 16px;
-                  background: linear-gradient(135deg,rgba(255,255,255,.02),transparent); pointer-events: none; }
-  .card-blue  { border-color: rgba(59,130,246,.3);  background: rgba(59,130,246,.05); }
-  .card-green { border-color: rgba(16,185,129,.3);  background: rgba(16,185,129,.05); }
-  .card-violet{ border-color: rgba(139,92,246,.3);  background: rgba(139,92,246,.05); }
-  .card-orange{ border-color: rgba(245,158,11,.3);  background: rgba(245,158,11,.05); }
-  .card-red   { border-color: rgba(239,68,68,.3);   background: rgba(239,68,68,.05); }
-  .card-cyan  { border-color: rgba(6,182,212,.3);   background: rgba(6,182,212,.05); }
-
-  /* ── Badges / Tags ── */
-  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
-           border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
-  .badge-blue   { background: rgba(59,130,246,.15);  color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
-  .badge-green  { background: rgba(16,185,129,.15);  color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
-  .badge-violet { background: rgba(139,92,246,.15);  color: #c4b5fd; border: 1px solid rgba(139,92,246,.3); }
-  .badge-orange { background: rgba(245,158,11,.15);  color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
-  .badge-red    { background: rgba(239,68,68,.15);   color: #fca5a5; border: 1px solid rgba(239,68,68,.3); }
-
-  /* ── List styles ── */
-  .check-list { list-style: none; }
-  .check-list li { padding: 7px 0; font-size: 15px; color: var(--muted);
-                   display: flex; gap: 10px; align-items: flex-start; }
-  .check-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-
-  /* ── Code blocks ── */
-  pre { background: rgba(0,0,0,.5); border: 1px solid var(--border); border-radius: 10px;
-        padding: 16px; font-size: 12px; line-height: 1.7; overflow-x: auto; color: #e2e8f0;
-        font-family: 'Cascadia Code', 'Fira Code', monospace; }
-  .kw { color: #818cf8; } .str { color: #86efac; } .cm { color: #64748b; font-style: italic; }
-  .fn { color: #67e8f9; } .num { color: #fca5a5; }
-
-  /* ── Flow / Pipeline ── */
-  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
-  .flow-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-              padding: 10px 18px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .flow-arrow { color: var(--muted); font-size: 20px; padding: 0 6px; flex-shrink: 0; }
-  .flow-box.b { border-color: rgba(59,130,246,.4); color: #93c5fd; }
-  .flow-box.g { border-color: rgba(16,185,129,.4); color: #6ee7b7; }
-  .flow-box.v { border-color: rgba(139,92,246,.4); color: #c4b5fd; }
-  .flow-box.o { border-color: rgba(245,158,11,.4); color: #fcd34d; }
-  .flow-box.r { border-color: rgba(239,68,68,.4);  color: #fca5a5; }
-
-  /* ── Metric big numbers ── */
-  .metric { text-align: center; }
-  .metric-num { font-size: 48px; font-weight: 900; line-height: 1; }
-  .metric-label { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
-
-  /* ── Table ── */
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 10px 14px; background: rgba(255,255,255,.04);
-       color: var(--muted); font-weight: 600; letter-spacing: .5px; font-size: 11px; text-transform: uppercase; }
-  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
-  tr:last-child td { border-bottom: none; }
-
-  /* ── Navigation ── */
-  .nav { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-         display: flex; align-items: center; gap: 16px; z-index: 100;
-         background: rgba(26,31,53,.9); backdrop-filter: blur(12px);
-         border: 1px solid var(--border); border-radius: 100px; padding: 10px 20px; }
-  .nav button { background: none; border: none; color: var(--muted); cursor: pointer;
-                font-size: 18px; padding: 4px 8px; transition: color .2s; }
-  .nav button:hover { color: white; }
-  #counter { font-size: 13px; color: var(--muted); min-width: 60px; text-align: center; }
-
-  /* ── Progress bar ── */
-  .progress { position: fixed; top: 0; left: 0; height: 3px;
-              background: linear-gradient(90deg, var(--blue), var(--violet));
-              transition: width .3s ease; z-index: 200; }
-
-  /* ── Section label (top-left) ── */
-  .section-tag { position: absolute; top: 28px; left: 80px;
-                 font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-                 color: rgba(255,255,255,.2); }
-
-  /* ── Slide number (top-right) ── */
-  .slide-num { position: absolute; top: 28px; right: 80px;
-               font-size: 12px; color: rgba(255,255,255,.2); font-weight: 600; }
-
-  /* ── Architecture box ── */
-  .arch { background: rgba(0,0,0,.3); border: 1px solid var(--border); border-radius: 12px;
-          padding: 20px; font-size: 12px; font-family: monospace; line-height: 2;
-          color: #94a3b8; }
-  .arch .hl { color: #93c5fd; font-weight: 700; }
-  .arch .gr { color: #6ee7b7; font-weight: 700; }
-  .arch .vl { color: #c4b5fd; font-weight: 700; }
-  .arch .or { color: #fcd34d; font-weight: 700; }
-
-  /* divider */
-  .divider { height: 1px; background: var(--border); margin: 20px 0; }
-
-  /* icon circle */
-  .icon-circle { width: 48px; height: 48px; border-radius: 50%; display: flex;
-                 align-items: center; justify-content: center; font-size: 22px;
-                 flex-shrink: 0; margin-bottom: 12px; }
-  .ic-blue   { background: rgba(59,130,246,.15); }
-  .ic-green  { background: rgba(16,185,129,.15); }
-  .ic-violet { background: rgba(139,92,246,.15); }
-  .ic-orange { background: rgba(245,158,11,.15); }
-  .ic-red    { background: rgba(239,68,68,.15); }
-  .ic-cyan   { background: rgba(6,182,212,.15); }
-
-  .small { font-size: 13px; }
-  .mt { margin-top: 16px; }
-  .mt8 { margin-top: 8px; }
-  strong { color: white; font-weight: 600; }
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--dark);color:var(--text);overflow:hidden;height:100vh}
+  .deck{width:100vw;height:100vh;position:relative}
+  .slide{position:absolute;inset:0;display:none;padding:52px 72px;flex-direction:column;justify-content:center;overflow:hidden}
+  .slide.active{display:flex;animation:fi .3s ease}
+  @keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .bg1{background:radial-gradient(ellipse at 20% 50%,rgba(59,130,246,.18),transparent 60%),radial-gradient(ellipse at 80% 50%,rgba(139,92,246,.14),transparent 60%),var(--dark)}
+  .bg2{background:radial-gradient(ellipse at 10% 80%,rgba(16,185,129,.12),transparent 55%),var(--dark)}
+  .bg3{background:radial-gradient(ellipse at 90% 20%,rgba(245,158,11,.12),transparent 55%),var(--dark)}
+  .bg4{background:radial-gradient(ellipse at 50% 100%,rgba(239,68,68,.1),transparent 55%),var(--dark)}
+  .bg5{background:radial-gradient(ellipse at 30% 30%,rgba(6,182,212,.12),transparent 55%),var(--dark)}
+  .eye{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+  h1{font-size:54px;font-weight:900;line-height:1.05;letter-spacing:-1.5px}
+  h2{font-size:38px;font-weight:800;letter-spacing:-1px;margin-bottom:28px}
+  h3{font-size:18px;font-weight:700;margin-bottom:8px}
+  .grad{background:linear-gradient(135deg,var(--blue),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .gg{background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .go{background:linear-gradient(135deg,var(--orange),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .sub{font-size:18px;color:var(--muted);margin-top:14px;line-height:1.5}
+  p{color:var(--muted);font-size:14px;line-height:1.7}
+  .c2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .c3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+  .c4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px}
+  .c64{display:grid;grid-template-columns:60fr 40fr;gap:24px}
+  .c46{display:grid;grid-template-columns:40fr 60fr;gap:24px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.02),transparent);pointer-events:none}
+  .cb{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.05)}
+  .cg{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.05)}
+  .cv{border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.05)}
+  .co{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.05)}
+  .cr{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.05)}
+  .cc{border-color:rgba(6,182,212,.3);background:rgba(6,182,212,.05)}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.5px}
+  .bb{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3)}
+  .bg{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+  .bv{background:rgba(139,92,246,.15);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)}
+  .bo{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+  .br{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+  ul.ck{list-style:none}
+  ul.ck li{padding:5px 0;font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+  ul.ck li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0}
+  pre{background:rgba(0,0,0,.5);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.7;color:#e2e8f0;font-family:'Cascadia Code','Fira Code',monospace;overflow-x:auto}
+  .kw{color:#818cf8}.str{color:#86efac}.cm{color:#64748b;font-style:italic}.fn{color:#67e8f9}.num{color:#fca5a5}
+  .flow{display:flex;align-items:center;gap:0;flex-wrap:wrap}
+  .fb{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;white-space:nowrap}
+  .fa{color:var(--muted);font-size:18px;padding:0 4px;flex-shrink:0}
+  .fb.b{border-color:rgba(59,130,246,.4);color:#93c5fd}
+  .fb.g{border-color:rgba(16,185,129,.4);color:#6ee7b7}
+  .fb.v{border-color:rgba(139,92,246,.4);color:#c4b5fd}
+  .fb.o{border-color:rgba(245,158,11,.4);color:#fcd34d}
+  .fb.r{border-color:rgba(239,68,68,.4);color:#fca5a5}
+  .fb.c{border-color:rgba(6,182,212,.4);color:#67e8f9}
+  .met{text-align:center}
+  .mn{font-size:44px;font-weight:900;line-height:1}
+  .ml{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:1px;text-transform:uppercase}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;padding:8px 12px;background:rgba(255,255,255,.04);color:var(--muted);font-weight:600;letter-spacing:.5px;font-size:10px;text-transform:uppercase}
+  td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .div{height:1px;background:var(--border);margin:16px 0}
+  .st{position:absolute;top:24px;left:72px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.18)}
+  .sn{position:absolute;top:24px;right:72px;font-size:11px;color:rgba(255,255,255,.18);font-weight:600}
+  strong{color:white;font-weight:600}
+  .sm{font-size:12px}
+  .mt{margin-top:14px}
+  .arch{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:11px;font-family:monospace;line-height:2;color:#94a3b8}
+  .arch .hl{color:#93c5fd;font-weight:700}.arch .gr{color:#6ee7b7;font-weight:700}.arch .vl{color:#c4b5fd;font-weight:700}.arch .or{color:#fcd34d;font-weight:700}
+  .livecard{background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(6,182,212,.08));border:1px solid rgba(16,185,129,.3);border-radius:14px;padding:18px}
+  .step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+  .stepnum{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;background:linear-gradient(135deg,var(--blue),var(--violet));color:white}
+  /* Nav */
+  .nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;z-index:100;background:rgba(26,31,53,.9);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:100px;padding:8px 18px}
+  .nav button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;padding:3px 7px;transition:color .2s}
+  .nav button:hover{color:white}
+  #ctr{font-size:12px;color:var(--muted);min-width:58px;text-align:center}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--violet));transition:width .3s ease;z-index:200}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:lp 1.5s ease-in-out infinite;margin-right:4px}
+  @keyframes lp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 </style>
 </head>
 <body>
-
-<div class="progress" id="progress"></div>
-
+<div class="progress" id="prog"></div>
 <div class="deck" id="deck">
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 1 — TITLE
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1 active">
-  <div style="max-width:780px">
-    <div class="eyebrow">☁️ Cloud Computing — IIT Delhi · 2025JTM2079</div>
-    <h1><span class="grad">AutoDrive AI</span><br>Assistant</h1>
-    <p class="subtitle">A cloud-native, RAG-powered conversational AI chatbot<br>
-    deployed on Microsoft Azure — with autoscaling, blue-green deployment,<br>
-    end-to-end monitoring, and real-time car inventory integration.</p>
-    <div style="display:flex;gap:12px;margin-top:32px;flex-wrap:wrap">
-      <span class="badge badge-blue">Azure App Service</span>
-      <span class="badge badge-violet">Groq LLaMA 3.3-70B</span>
-      <span class="badge badge-green">Terraform IaC</span>
-      <span class="badge badge-orange">GitHub Actions CI/CD</span>
-      <span class="badge badge-blue">Application Insights</span>
-      <span class="badge badge-violet">Key Vault</span>
+<!-- ═══ 01 TITLE ═══ -->
+<div class="slide bg1 active">
+  <div style="max-width:800px">
+    <div class="eye">☁️ Cloud Computing · IIT Delhi · 2025JTM2079</div>
+    <h1><span class="grad">AutoDrive AI</span><br>Chatbot</h1>
+    <p class="sub">A production-grade, cloud-native RAG chatbot deployed on Microsoft Azure —<br>
+    demonstrating autoscaling, blue-green deployment, CI/CD, monitoring, IaC, and secrets management.</p>
+    <div style="display:flex;gap:10px;margin-top:28px;flex-wrap:wrap">
+      <span class="badge bb">Azure App Service S1</span>
+      <span class="badge bv">Groq LLaMA 3.3-70B</span>
+      <span class="badge bg">Terraform IaC</span>
+      <span class="badge bo">4-Stage CI/CD</span>
+      <span class="badge bb">Application Insights</span>
+      <span class="badge bv">Key Vault</span>
+      <span class="badge bg">Blue-Green Deploy</span>
+      <span class="badge bo">Autoscaling</span>
     </div>
   </div>
-  <div style="position:absolute;right:80px;bottom:80px;text-align:right">
+  <div style="position:absolute;right:72px;bottom:72px;text-align:right">
     <div style="font-size:13px;color:var(--muted)">Ashad Alam · 2025JTM2079</div>
-    <div style="font-size:12px;color:rgba(255,255,255,.2);margin-top:4px">IIT Delhi · May 2025</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.2);margin-top:3px">IIT Delhi · Cloud Computing · May 2025</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 2 — WHAT WE BUILT
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">Overview</div><div class="slide-num">02</div>
+<!-- ═══ 02 WHAT WE BUILT ═══ -->
+<div class="slide bg2">
+  <div class="st">Overview</div><div class="sn">02</div>
   <h2>What We <span class="grad">Built</span></h2>
-  <div class="cols cols-2" style="gap:32px;align-items:start">
+  <div class="c2" style="align-items:start;gap:28px">
     <div>
-      <p style="font-size:16px;color:var(--text);margin-bottom:20px">
-        An AI-powered car shopping assistant for <strong>AutoDrive</strong> — a live Indian pre-owned car
-        marketplace — that answers questions about real inventory, compares cars, and books test drives.
-      </p>
-      <ul class="check-list">
+      <p style="font-size:15px;color:var(--text);margin-bottom:18px">An AI car-shopping assistant for <strong>AutoDrive</strong> — a live Indian pre-owned car marketplace — that answers real inventory questions, compares cars in ₹, and books test drives. Three Azure student accounts collaborating in one live system.</p>
+      <ul class="ck">
         <li>Live inventory sync from friend's PostgreSQL via REST API</li>
-        <li>Streaming LLM responses (Server-Sent Events)</li>
-        <li>Voice input (Groq Whisper STT) + audio output (Browser TTS)</li>
-        <li>Floating chat widget + standalone voice assistant page</li>
-        <li>Deep-link: bot mentions a car → one click to the car page</li>
-        <li>Test drive booking flow embedded in chat</li>
+        <li>Streaming LLM responses (Server-Sent Events, first token &lt;1s)</li>
+        <li>Voice input (Groq Whisper STT) + browser audio output (TTS)</li>
+        <li>Floating chat widget integrated in friend's Next.js frontend</li>
+        <li>Deep-link: bot names a car → one click → car details page</li>
+        <li>Test drive booking widget embedded inline in chat</li>
+        <li>Chatbot answers in ₹ — Maruti, Hyundai, Tata, etc.</li>
       </ul>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card card-blue">
-        <div style="font-size:32px;font-weight:900;color:#93c5fd">3</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">Azure accounts collaborating</div>
-      </div>
-      <div class="card card-green">
-        <div style="font-size:32px;font-weight:900;color:#6ee7b7">12</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">Live cars in Indian inventory</div>
-      </div>
-      <div class="card card-violet">
-        <div style="font-size:32px;font-weight:900;color:#c4b5fd">&lt; 1s</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">First-token response latency</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 3 — FULL SYSTEM ARCHITECTURE
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">Architecture</div><div class="slide-num">03</div>
-  <h2>System <span class="grad">Architecture</span></h2>
-  <div class="cols cols-2" style="align-items:start;gap:28px">
-    <div class="arch">
-<span class="hl">USER LAYER</span>
-┌─────────────────────────────────────┐
-│  Browser (React frontend)           │
-│  • ChatWidget.tsx  (floating)       │
-│  • VoicePage.tsx   (/voice route)   │
-└──────────────┬──────────────────────┘
-               │ HTTPS / SSE
-<span class="hl">CLOUD LAYER  (Azure Southeast Asia)</span>
-┌──────────────▼──────────────────────┐
-│  Azure App Service S1 Linux         │
-│  ┌────────────────────────────────┐ │
-│  │  FastAPI  (Uvicorn, 2 workers) │ │
-│  │  • /chat/stream  (SSE)        │ │
-│  │  • /voice/transcribe          │ │
-│  │  • /inventory/refresh         │ │
-│  │  • /health  /ready            │ │
-│  └──────┬──────────────┬─────────┘ │
-│         │              │           │
-│  ┌──────▼──────┐ ┌─────▼────────┐ │
-│  │  <span class="gr">RAG Engine</span>  │ │ <span class="or">Inv. Cache</span>  │ │
-│  │  TF-IDF     │ │ TTL: 24h    │ │
-│  │  LangChain  │ │ httpx fetch │ │
-│  └──────┬──────┘ └─────┬────────┘ │
-└─────────┼──────────────┼──────────┘
-          │              │
-    ┌─────▼──┐     ┌─────▼─────────────┐
-    │<span class="vl">Groq API</span> │     │ <span class="gr">autodriveai.duck</span>   │
-    │LLaMA   │     │ dns.org/api/cars  │
-    │Whisper │     │ (friend's PgSQL)  │
-    └────────┘     └───────────────────┘
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card card-blue small">
-        <strong>🐳 Docker</strong> — multi-stage build, pushed to GitHub Container Registry (free, unlimited)
-      </div>
-      <div class="card card-green small">
-        <strong>🔒 Azure Key Vault</strong> — all secrets stored here. App reads via Managed Identity — zero credentials in code
-      </div>
-      <div class="card card-violet small">
-        <strong>📊 Application Insights</strong> — tracks every request, latency, error rate
-      </div>
-      <div class="card card-orange small">
-        <strong>📋 Log Analytics</strong> — JSON structured logs with correlation IDs, queryable via KQL
-      </div>
-      <div class="card card-blue small">
-        <strong>🔀 Deployment Slot</strong> — staging slot for zero-downtime blue-green deploys
-      </div>
+      <div class="card cb"><div style="font-size:36px;font-weight:900;color:#93c5fd">3</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Azure accounts collaborating live</div></div>
+      <div class="card cg"><div style="font-size:36px;font-weight:900;color:#6ee7b7">13</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Azure resources, all IaC (Terraform)</div></div>
+      <div class="card cv"><div style="font-size:36px;font-weight:900;color:#c4b5fd">4</div><div style="font-size:12px;color:var(--muted);margin-top:3px">CI/CD pipeline stages</div></div>
+      <div class="card co"><div style="font-size:36px;font-weight:900;color:#fcd34d">$0</div><div style="font-size:12px;color:var(--muted);margin-top:3px">LLM cost (Groq free tier)</div></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 4 — WHAT IS RAG
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-3">
-  <div class="section-tag">AI / RAG</div><div class="slide-num">04</div>
+<!-- ═══ 03 THREE-ACCOUNT ARCHITECTURE ═══ -->
+<div class="slide bg1">
+  <div class="st">Architecture</div><div class="sn">03</div>
+  <h2>Three-Account <span class="grad">Cloud Architecture</span></h2>
+  <div class="c3" style="gap:16px;margin-bottom:18px">
+    <div class="card cv" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🗄️</div>
+      <h3 style="color:#c4b5fd">Account 1 — Mahesh</h3>
+      <p style="margin-top:6px">PostgreSQL database with car inventory. REST API at <code style="color:#c4b5fd">autodriveai.duckdns.org/api/cars</code></p>
+      <div style="margin-top:10px"><span class="badge bv">PostgreSQL</span> <span class="badge bv">Next.js</span></div>
+    </div>
+    <div class="card cb" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🤖</div>
+      <h3 style="color:#93c5fd">Account 2 — Ashad (This)</h3>
+      <p style="margin-top:6px">FastAPI chatbot on Azure App Service. RAG + LLM + Voice. CI/CD, autoscale, monitoring.</p>
+      <div style="margin-top:10px"><span class="badge bb">Azure App Service</span> <span class="badge bb">Groq</span></div>
+    </div>
+    <div class="card cg" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🌐</div>
+      <h3 style="color:#6ee7b7">Account 3 — Teammate</h3>
+      <p style="margin-top:6px">React frontend with embedded ChatWidget and VoicePage components.</p>
+      <div style="margin-top:10px"><span class="badge bg">React/Next.js</span> <span class="badge bg">Azure Static</span></div>
+    </div>
+  </div>
+  <div style="text-align:center;padding:14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:12px">
+    <p style="font-size:13px;color:var(--text)">
+      <span class="live-dot"></span>
+      <strong>Live data flow:</strong> User types in frontend → ChatWidget hits chatbot API → RAG fetches from Mahesh's DB → Groq LLaMA generates response → streams back to user in real-time
+    </p>
+  </div>
+</div>
+
+<!-- ═══ 04 FULL SYSTEM ARCHITECTURE ═══ -->
+<div class="slide bg3">
+  <div class="st">Architecture</div><div class="sn">04</div>
+  <h2>System <span class="grad">Architecture</span></h2>
+  <div class="c2" style="align-items:start;gap:24px">
+    <div class="arch">
+<span class="hl">USER</span>  Browser → React ChatWidget / VoicePage
+         │  HTTPS + Server-Sent Events (streaming)
+         ▼
+<span class="hl">AZURE APP SERVICE S1</span>  (Southeast Asia)
+  ┌─────────────────────────────────────────┐
+  │  FastAPI + Uvicorn (2 workers)          │
+  │  ├── POST /chat/stream  (SSE)          │
+  │  ├── POST /voice/transcribe            │
+  │  ├── POST /inventory/refresh           │
+  │  └── GET  /health  /ready             │
+  │                                        │
+  │  RAGEngine                             │
+  │  ├── InventoryCache (TTL 24h)          │
+  │  └── TF-IDF Retriever (free, local)    │
+  └──────┬───────────────────┬────────────┘
+         │                   │
+   ┌─────▼──────┐    ┌───────▼──────────────┐
+   │<span class="vl">Groq API</span>    │    │<span class="gr">autodriveai.duckdns.org</span>│
+   │LLaMA 3.3   │    │/api/cars             │
+   │Whisper STT │    │(Mahesh's PostgreSQL) │
+   └────────────┘    └──────────────────────┘
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card cb sm"><strong>🐳 Docker</strong> — Multi-stage build. Image on GitHub Container Registry (free). Azure pulls by SHA.</div>
+      <div class="card cg sm"><strong>🔐 Key Vault</strong> — Secrets stored securely. App reads via Managed Identity at runtime.</div>
+      <div class="card cv sm"><strong>📊 App Insights</strong> — Every request tracked: latency, errors, dependencies, live metrics stream.</div>
+      <div class="card co sm"><strong>📋 Log Analytics</strong> — JSON structured logs with correlation IDs. Query with KQL.</div>
+      <div class="card cb sm"><strong>🔀 Staging Slot</strong> — Blue-green deployment. Zero-downtime swap with instant rollback.</div>
+      <div class="card cg sm"><strong>📈 Autoscale</strong> — 3 rules: CPU &gt;70%, HTTP queue &gt;10, CPU &lt;30% (scale in).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 05 WHAT IS RAG ═══ -->
+<div class="slide bg2">
+  <div class="st">AI / RAG</div><div class="sn">05</div>
   <h2>What is <span class="grad">RAG</span>?</h2>
-  <p style="margin-bottom:24px;font-size:15px">
-    <strong>Retrieval Augmented Generation</strong> — the LLM doesn't memorise facts. Instead, it fetches
-    relevant data at query time and uses it as context. Think of it as giving the LLM an open-book exam.
-  </p>
-  <div class="flow" style="margin-bottom:28px">
-    <div class="flow-box b">👤 User Question</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box v">🔍 Retrieve<br><small>TF-IDF search<br>over inventory</small></div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box o">📄 Context<br><small>Top matching<br>car documents</small></div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box b">🤖 LLM<br><small>Groq LLaMA<br>3.3-70B</small></div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box g">✅ Grounded<br>Answer</div>
+  <p style="margin-bottom:20px;font-size:14px"><strong>Retrieval Augmented Generation</strong> — Instead of memorising facts (like fine-tuning), the LLM fetches relevant data at query time and uses it as context. Open-book exam vs closed-book.</p>
+  <div class="flow" style="margin-bottom:22px;justify-content:center">
+    <div style="text-align:center"><div class="fb b" style="padding:12px 18px">👤 User Query<br><small>SUVs under ₹20L</small></div></div>
+    <div class="fa">→</div>
+    <div style="text-align:center"><div class="fb v" style="padding:12px 18px">🔍 TF-IDF<br><small>Score all 12 cars</small></div></div>
+    <div class="fa">→</div>
+    <div style="text-align:center"><div class="fb o" style="padding:12px 18px">📄 Context<br><small>Top 3-5 car docs</small></div></div>
+    <div class="fa">→</div>
+    <div style="text-align:center"><div class="fb b" style="padding:12px 18px">🤖 LLaMA 3.3<br><small>Generates response</small></div></div>
+    <div class="fa">→</div>
+    <div style="text-align:center"><div class="fb g" style="padding:12px 18px">✅ Answer<br><small>In ₹, real data</small></div></div>
   </div>
-  <div class="cols cols-3" style="gap:20px">
-    <div class="card card-blue">
-      <h3>Step 1 — Retrieve</h3>
-      <p>User asks "SUVs under ₹20 lakh". TF-IDF scores all 12 cars against this query.
-      Top matches: Creta, Seltos, Hector, Nexon EV.</p>
-    </div>
-    <div class="card card-violet">
-      <h3>Step 2 — Augment</h3>
-      <p>Matched car documents (price, features, location, rating) are injected into the
-      LLM's system prompt as structured context before it generates any response.</p>
-    </div>
-    <div class="card card-green">
-      <h3>Step 3 — Generate</h3>
-      <p>LLaMA 3.3-70B sees the context and generates a response grounded in real data —
-      correct prices in ₹, actual features, real cities. Never hallucinates.</p>
-    </div>
+  <div class="c3" style="gap:16px">
+    <div class="card cb"><h3>Step 1 — Retrieve</h3><p>Query "SUVs under ₹20L" is scored against all 12 cars using TF-IDF (Term Frequency–Inverse Document Frequency). Top matches: Creta, Seltos, Hector, Nexon EV.</p></div>
+    <div class="card cv"><h3>Step 2 — Augment</h3><p>Matched car details (price in ₹, mileage, features, location, rating) are injected into the LLM's system prompt. The model now "knows" the inventory.</p></div>
+    <div class="card cg"><h3>Step 3 — Generate</h3><p>LLaMA 3.3-70B generates a grounded response using only the provided context. Correct ₹ prices, actual features, real cities. Zero hallucination on inventory data.</p></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 5 — WHY RAG OVER ALTERNATIVES
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">AI / RAG</div><div class="slide-num">05</div>
+<!-- ═══ 06 WHY RAG ═══ -->
+<div class="slide bg1">
+  <div class="st">AI / RAG</div><div class="sn">06</div>
   <h2>Why <span class="grad">RAG</span> — Not Fine-tuning or Prompting?</h2>
-  <table style="margin-bottom:24px">
-    <thead>
-      <tr>
-        <th>Approach</th><th>Data Freshness</th><th>Cost</th><th>Accuracy</th><th>Verdict</th>
-      </tr>
-    </thead>
+  <table style="margin-bottom:18px">
+    <thead><tr><th>Approach</th><th>Data Fresh?</th><th>Cost</th><th>Accuracy</th><th>Verdict</th></tr></thead>
     <tbody>
-      <tr>
-        <td><strong>Pure Prompting</strong><br><small style="color:var(--muted)">Paste all cars into prompt</small></td>
-        <td>✅ Real-time</td><td>⚠️ High token cost</td><td>❌ Poor (> 30 cars)</td>
-        <td><span class="badge badge-red">Fails at scale</span></td>
-      </tr>
-      <tr>
-        <td><strong>Fine-tuning</strong><br><small style="color:var(--muted)">Train model on inventory</small></td>
-        <td>❌ Static</td><td>❌ Very expensive</td><td>✅ Good</td>
-        <td><span class="badge badge-red">Stale data</span></td>
-      </tr>
-      <tr>
-        <td><strong>Vector RAG</strong><br><small style="color:var(--muted)">Embeddings + FAISS</small></td>
-        <td>✅ Refreshable</td><td>⚠️ Embedding API cost</td><td>✅ Excellent</td>
-        <td><span class="badge badge-orange">Overkill for 12 cars</span></td>
-      </tr>
-      <tr style="background:rgba(59,130,246,.05)">
-        <td><strong>TF-IDF RAG ← Used</strong><br><small style="color:#93c5fd">Keyword retrieval</small></td>
-        <td>✅ Live API (24h cache)</td><td>✅ Free (no API)</td><td>✅ Excellent for inventory</td>
-        <td><span class="badge badge-green">✓ Perfect fit</span></td>
-      </tr>
+      <tr><td><strong>Pure Prompting</strong><br><small style="color:var(--muted)">Paste all cars in prompt</small></td><td>✅ Real-time</td><td>⚠️ High tokens</td><td>❌ Poor at scale</td><td><span class="badge br">Fails &gt;30 cars</span></td></tr>
+      <tr><td><strong>Fine-tuning</strong><br><small style="color:var(--muted)">Train model on inventory</small></td><td>❌ Static snapshot</td><td>❌ Very expensive</td><td>✅ Good</td><td><span class="badge br">Stale data</span></td></tr>
+      <tr><td><strong>Vector RAG</strong><br><small style="color:var(--muted)">Embeddings + FAISS</small></td><td>✅ Refreshable</td><td>⚠️ Embedding API</td><td>✅ Excellent</td><td><span class="badge bo">Overkill for 12 cars</span></td></tr>
+      <tr style="background:rgba(16,185,129,.05)"><td><strong>TF-IDF RAG ← Used</strong><br><small style="color:#6ee7b7">Keyword retrieval, local</small></td><td>✅ Live API (24h cache)</td><td>✅ Free</td><td>✅ Excellent</td><td><span class="badge bg">✓ Perfect fit</span></td></tr>
     </tbody>
   </table>
-  <div class="cols cols-2" style="gap:20px">
-    <div class="card card-green">
-      <h3>Why TF-IDF is right here</h3>
-      <ul class="check-list">
-        <li>Car inventory = structured, keyword-rich text (make, model, fuel, price)</li>
-        <li>TF-IDF excels at exact keyword matching — "diesel SUV Mumbai" works perfectly</li>
-        <li>Zero API cost — runs locally, no embedding quota needed</li>
-        <li>Sub-millisecond retrieval for ≤ 30 cars</li>
-      </ul>
-    </div>
-    <div class="card card-blue">
-      <h3>Upgrade path (for 1000+ cars)</h3>
-      <ul class="check-list">
-        <li>Switch to Azure AI Search with vector embeddings</li>
-        <li>One config change in <code>config.py</code></li>
-        <li>Architecture already supports this — retriever is pluggable</li>
-        <li>text-embedding-3-large deployment already exists in Azure OpenAI</li>
-      </ul>
-    </div>
+  <div class="c2" style="gap:16px">
+    <div class="card cg"><h3>Why TF-IDF works here</h3><ul class="ck"><li>Car inventory = structured keyword-rich text (make, model, fuel, price)</li><li>TF-IDF excels at exact keyword matching</li><li>Zero API cost — runs locally in-process</li><li>Sub-millisecond retrieval for ≤30 cars</li></ul></div>
+    <div class="card cb"><h3>Upgrade path (100+ cars)</h3><ul class="ck"><li>Switch to Azure AI Search with vector embeddings</li><li>One config change in config.py</li><li>Architecture already supports it — retriever is pluggable</li><li>text-embedding-3-large deployment already exists in Azure</li></ul></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 6 — INFRASTRUCTURE AS CODE (TERRAFORM)
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">Cloud Infrastructure</div><div class="slide-num">06</div>
+<!-- ═══ 07 IaC TERRAFORM ═══ -->
+<div class="slide bg3">
+  <div class="st">Cloud Infrastructure</div><div class="sn">07</div>
   <h2>Infrastructure as Code — <span class="grad">Terraform</span></h2>
-  <div class="cols cols-60-40" style="gap:28px;align-items:start">
+  <div class="c64" style="align-items:start;gap:24px">
     <div>
-      <p style="margin-bottom:18px">Every Azure resource is defined in <strong>.tf files</strong> — not clicked in the portal.
-      This enables reproducible, version-controlled, peer-reviewable infrastructure.</p>
-      <div class="cols cols-2" style="gap:14px;margin-bottom:14px">
-        <div class="card small"><strong>main.tf</strong><br><span style="color:var(--muted)">Provider + resource group reference</span></div>
-        <div class="card small"><strong>container_apps.tf</strong><br><span style="color:var(--muted)">App Service plan, web app, autoscale, deployment slot</span></div>
-        <div class="card small"><strong>monitoring.tf</strong><br><span style="color:var(--muted)">Application Insights, Log Analytics, alert rules</span></div>
-        <div class="card small"><strong>keyvault.tf</strong><br><span style="color:var(--muted)">Key Vault, managed identity, access policies</span></div>
-        <div class="card small"><strong>openai.tf</strong><br><span style="color:var(--muted)">Reference to existing Azure OpenAI resource</span></div>
-        <div class="card small"><strong>variables.tf / outputs.tf</strong><br><span style="color:var(--muted)">Parameterised, no hardcoded values</span></div>
+      <p style="margin-bottom:16px">Every Azure resource is defined in <strong>.tf files</strong> — not clicked in the portal. Reproducible, version-controlled, peer-reviewable. <code>terraform apply</code> rebuilds everything in &lt;5 minutes.</p>
+      <div class="c2" style="gap:10px;margin-bottom:12px">
+        <div class="card sm"><strong>main.tf</strong><br><span style="color:var(--muted)">Provider + RG reference</span></div>
+        <div class="card sm"><strong>container_apps.tf</strong><br><span style="color:var(--muted)">App Service, autoscale, deployment slot</span></div>
+        <div class="card sm"><strong>monitoring.tf</strong><br><span style="color:var(--muted)">App Insights, Log Analytics, 3 alerts</span></div>
+        <div class="card sm"><strong>keyvault.tf</strong><br><span style="color:var(--muted)">Key Vault, managed identity, policies</span></div>
       </div>
+      <div class="card cg sm"><strong>13 resources created by Terraform:</strong> App Service Plan (S1), Web App, Staging Slot, Autoscale, User-Assigned Identity, Key Vault, 2 Secrets, Log Analytics, App Insights, 3 Monitor Alerts, 1 Action Group</div>
     </div>
     <div>
-      <pre><span class="cm"># All 13 resources declared as code</span>
+      <pre><span class="cm"># App Service + autoscale in code</span>
 <span class="kw">resource</span> <span class="str">"azurerm_linux_web_app"</span> <span class="str">"chatbot"</span> {
   name     = <span class="str">"autodrive-chatbot"</span>
   location = <span class="kw">var</span>.location
-
-  <span class="cm"># Managed Identity — no credentials stored</span>
   identity { type = <span class="str">"UserAssigned"</span> }
-
   site_config {
     health_check_path = <span class="str">"/health"</span>
     always_on         = <span class="kw">true</span>
   }
-
   app_settings = {
-    GROQ_API_KEY = <span class="str">"@KeyVault(...)"</span>
+    GROQ_API_KEY = <span class="kw">var</span>.groq_api_key
   }
 }
-
-<span class="cm"># Autoscale: CPU > 70% → add instance</span>
-<span class="kw">resource</span> <span class="str">"azurerm_monitor_autoscale_setting"</span> ...
-<span class="cm"># Key Vault, App Insights, Alerts — all code</span></pre>
-      <div class="card card-green small mt">
-        <strong>Key benefit:</strong> Entire infrastructure destroyed and recreated in &lt; 5 minutes.
-        <code>terraform apply</code> is the only deployment command needed.
-      </div>
+<span class="kw">resource</span> <span class="str">"azurerm_monitor_autoscale_setting"</span> ... {
+  profile {
+    capacity { minimum=<span class="num">1</span> maximum=<span class="num">3</span> }
+    rule { <span class="cm"># CPU > 70% → +1 instance</span> }
+    rule { <span class="cm"># CPU < 30% → -1 instance</span> }
+    rule { <span class="cm"># HTTP queue > 10 → +1</span> }
+  }
+}</pre>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 7 — CONTAINERISATION
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-3">
-  <div class="section-tag">Cloud Infrastructure</div><div class="slide-num">07</div>
+<!-- ═══ 08 DOCKER ═══ -->
+<div class="slide bg2">
+  <div class="st">Containerisation</div><div class="sn">08</div>
   <h2>Containerisation — <span class="grad">Docker</span></h2>
-  <div class="cols cols-2" style="gap:28px;align-items:start">
+  <div class="c2" style="align-items:start;gap:24px">
     <div>
-      <p style="margin-bottom:18px">Multi-stage build keeps the production image small and secure —
-      build tools stay in the builder stage, only the runtime lands in production.</p>
-      <pre><span class="cm"># Stage 1 — Builder (has pip, gcc, etc.)</span>
+      <p style="margin-bottom:16px">Multi-stage build: build tools stay in the builder stage, only the runtime lands in production. Result: small, secure, reproducible image.</p>
+      <pre><span class="cm"># Stage 1 — Builder</span>
 <span class="kw">FROM</span> python:3.12-slim <span class="kw">AS</span> builder
 <span class="kw">WORKDIR</span> /app
 <span class="kw">COPY</span> requirements.txt .
-<span class="cm"># --prefix keeps packages isolated</span>
 <span class="kw">RUN</span> pip install --prefix=/install -r requirements.txt
 
 <span class="cm"># Stage 2 — Production (minimal)</span>
 <span class="kw">FROM</span> python:3.12-slim
 <span class="kw">WORKDIR</span> /app
-<span class="cm"># Copy only the installed packages</span>
 <span class="kw">COPY</span> --from=builder /install /usr/local
 <span class="kw">COPY</span> src/ ./src/
 <span class="kw">ENV</span> PYTHONPATH=/app
 <span class="kw">CMD</span> ["uvicorn", "src.main:app",
-     "--host", "0.0.0.0", "--port", "8002"]</pre>
+     "--host", "0.0.0.0",
+     "--port", "8002", "--workers", "2"]</pre>
     </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card card-blue">
-        <h3>GitHub Container Registry</h3>
-        <p>Free for public packages. Image pushed as <code>ghcr.io/ashad8949/autodrive-chatbot:latest</code>.
-        Azure App Service pulls directly — no Azure Container Registry cost.</p>
-      </div>
-      <div class="card card-green">
-        <h3>Image Tagging Strategy</h3>
-        <ul class="check-list">
-          <li><code>:latest</code> — always the newest build</li>
-          <li><code>:&lt;git-sha&gt;</code> — immutable, traceable to commit</li>
-          <li>Azure pulls by SHA in staging, latest in prod swap</li>
-        </ul>
-      </div>
-      <div class="card card-violet">
-        <h3>Layer Caching</h3>
-        <p>GitHub Actions caches Docker layers — only changed layers re-build. Average build time: <strong style="color:#c4b5fd">45 seconds</strong>.</p>
-      </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card cb"><h3>GitHub Container Registry</h3><p>Free for public packages. Image: <code>ghcr.io/ashad8949/autodrive-chatbot</code>. Replaced Azure Container Registry (~$5/month).</p></div>
+      <div class="card cg"><h3>Image Tagging</h3><ul class="ck"><li><code>:latest</code> — newest build</li><li><code>:&lt;7-char-sha&gt;</code> — immutable, traceable to git commit</li><li>Azure pulls by SHA in staging, latest in production</li></ul></div>
+      <div class="card cv"><h3>Layer Caching in CI</h3><p>GitHub Actions caches Docker layers — only changed layers rebuild. Average build time: <strong style="color:#c4b5fd">45 seconds</strong>.</p></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 8 — CI/CD PIPELINE
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">CI/CD</div><div class="slide-num">08</div>
-  <h2>CI/CD Pipeline — <span class="grad">4-Stage GitHub Actions</span></h2>
-  <div class="flow" style="margin-bottom:28px;justify-content:center">
-    <div style="text-align:center">
-      <div class="flow-box r" style="padding:14px 22px;font-size:14px">🧪 Stage 1<br><strong>Test</strong></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">pytest · must pass</div>
-    </div>
-    <div class="flow-arrow" style="font-size:28px">→</div>
-    <div style="text-align:center">
-      <div class="flow-box b" style="padding:14px 22px;font-size:14px">🐳 Stage 2<br><strong>Build</strong></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Docker build · push to ghcr.io</div>
-    </div>
-    <div class="flow-arrow" style="font-size:28px">→</div>
-    <div style="text-align:center">
-      <div class="flow-box o" style="padding:14px 22px;font-size:14px">🔶 Stage 3<br><strong>Staging</strong></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Deploy to slot · health check</div>
-    </div>
-    <div class="flow-arrow" style="font-size:28px">→</div>
-    <div style="text-align:center">
-      <div class="flow-box g" style="padding:14px 22px;font-size:14px">✅ Stage 4<br><strong>Production</strong></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Slot swap · verify · rollback</div>
-    </div>
+<!-- ═══ 09 CI/CD PIPELINE ═══ -->
+<div class="slide bg1">
+  <div class="st">CI/CD</div><div class="sn">09</div>
+  <h2>CI/CD — <span class="grad">4-Stage GitHub Actions Pipeline</span></h2>
+  <div class="flow" style="justify-content:center;margin-bottom:24px">
+    <div style="text-align:center"><div class="fb r" style="padding:14px 20px;font-size:13px">🧪 Stage 1<br><strong>Test</strong></div><div style="font-size:10px;color:var(--muted);margin-top:5px">pytest · 5 tests</div></div>
+    <div class="fa" style="font-size:26px">→</div>
+    <div style="text-align:center"><div class="fb b" style="padding:14px 20px;font-size:13px">🐳 Stage 2<br><strong>Build</strong></div><div style="font-size:10px;color:var(--muted);margin-top:5px">Docker → ghcr.io</div></div>
+    <div class="fa" style="font-size:26px">→</div>
+    <div style="text-align:center"><div class="fb o" style="padding:14px 20px;font-size:13px">🔶 Stage 3<br><strong>Staging</strong></div><div style="font-size:10px;color:var(--muted);margin-top:5px">Deploy + health check</div></div>
+    <div class="fa" style="font-size:26px">→</div>
+    <div style="text-align:center"><div class="fb g" style="padding:14px 20px;font-size:13px">✅ Stage 4<br><strong>Production</strong></div><div style="font-size:10px;color:var(--muted);margin-top:5px">Slot swap + verify</div></div>
   </div>
-  <div class="cols cols-4" style="gap:16px">
-    <div class="card card-red small">
-      <strong>Test Gate</strong><br>
-      <p>Unit tests run with mocked LLM. If any test fails, pipeline stops — code never ships to staging.</p>
-    </div>
-    <div class="card card-blue small">
-      <strong>Build Gate</strong><br>
-      <p>Docker build fails if Dockerfile has errors. Image only pushed if build succeeds. Tagged with git SHA for traceability.</p>
-    </div>
-    <div class="card card-orange small">
-      <strong>Staging Gate</strong><br>
-      <p>Deploys to <code>autodrive-chatbot-staging</code> slot. Polls <code>/health</code> for 3 minutes. Blocks if unhealthy.</p>
-    </div>
-    <div class="card card-green small">
-      <strong>Auto-Rollback</strong><br>
-      <p>After production slot swap, re-checks <code>/health</code>. If it fails, automatically swaps back. Zero manual intervention.</p>
-    </div>
+  <div class="c4" style="gap:14px">
+    <div class="card cr sm"><strong>Test Gate</strong><br><p>All 5 unit tests must pass. Tests use mocked engine — no real API calls. If any fail, pipeline stops. Code never ships broken.</p></div>
+    <div class="card cb sm"><strong>Build Gate</strong><br><p>Docker build must succeed. Image tagged with git SHA for traceability. Layer cache makes it fast (~45s). Pushed to ghcr.io.</p></div>
+    <div class="card co sm"><strong>Staging Gate</strong><br><p>New image deployed to staging slot. Health endpoint <code>/health</code> polled every 15s for 5 minutes. Blocks if unhealthy.</p></div>
+    <div class="card cg sm"><strong>Auto-Rollback</strong><br><p>After production slot swap, re-checks <code>/health</code>. If it fails → automatically swaps back. Zero manual intervention. Zero downtime.</p></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 9 — BLUE-GREEN DEPLOYMENT
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">CI/CD · Scaling</div><div class="slide-num">09</div>
+<!-- ═══ 10 BLUE-GREEN DEPLOYMENT ═══ -->
+<div class="slide bg3">
+  <div class="st">CI/CD · Scaling</div><div class="sn">10</div>
   <h2>Blue-Green Deployment — <span class="grad">Zero Downtime</span></h2>
-  <div class="cols cols-2" style="gap:32px;align-items:center">
+  <div class="c2" style="align-items:center;gap:28px">
     <div>
-      <p style="margin-bottom:20px">Azure App Service <strong>deployment slots</strong> run two versions simultaneously.
-      Traffic switches instantly with a DNS-level swap — no restart, no dropped requests.</p>
+      <p style="margin-bottom:18px">Azure App Service <strong>deployment slots</strong> run two versions simultaneously. Traffic switches with an atomic DNS-level swap — no restart, no dropped requests, users notice nothing.</p>
       <div class="arch">
 <span class="hl">BEFORE DEPLOY</span>
-  Production slot ──► users (100% traffic)
-    [old image v1.2]   ✅ live
+  Production ──► 100% users ✅ [v1.2 running]
+  Staging    ──► internal only 🔶 [deploying v1.3]
 
-  Staging slot ────► internal only
-    [new image v1.3]   🔶 being deployed
+<span class="gr">HEALTH CHECK PASSES → /health returns 200</span>
 
-<span class="gr">HEALTH CHECK PASSES</span>
-  curl /health → 200 OK ✅
-
-<span class="hl">AFTER SWAP  (atomic, milliseconds)</span>
-  Production slot ──► users (100% traffic)
-    [new image v1.3]   ✅ live, zero downtime
-
-  Staging slot ────► now holds old v1.2
-    [old image v1.2]   🔙 instant rollback ready
+<span class="hl">SWAP (atomic, milliseconds)</span>
+  Production ──► 100% users ✅ [v1.3 now live]
+  Staging    ──► holds old v1.2 🔙 [instant rollback]
       </div>
+      <div class="card cg sm mt"><strong>Rollback time: &lt; 10 seconds.</strong> Old version stays warm in staging — one command swaps back if anything goes wrong in production.</div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card card-green">
-        <h3>Why this matters</h3>
-        <ul class="check-list">
-          <li>Users experience <strong>0 seconds of downtime</strong> during every deploy</li>
-          <li>Old version kept warm — rollback in under 10 seconds</li>
-          <li>Staging is a real production environment — catches config issues</li>
-        </ul>
-      </div>
-      <div class="card card-blue">
-        <h3>Terraform config</h3>
-        <pre style="font-size:11px"><span class="kw">resource</span> <span class="str">"azurerm_linux_web_app_slot"</span> <span class="str">"staging"</span> {
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card co"><h3>Why this matters</h3><ul class="ck"><li>Users experience <strong>0 seconds of downtime</strong> per deploy</li><li>Staging is real production environment — catches config issues before users see them</li><li>Can push multiple times per day safely</li></ul></div>
+      <div class="card cb"><h3>Terraform config</h3><pre style="font-size:10px"><span class="kw">resource</span> <span class="str">"azurerm_linux_web_app_slot"</span> <span class="str">"staging"</span> {
   name           = <span class="str">"staging"</span>
   app_service_id = azurerm_linux_web_app.chatbot.id
   site_config {
     health_check_path = <span class="str">"/health"</span>
   }
-}</pre>
-      </div>
-      <div class="card card-orange">
-        <h3>CLI swap command</h3>
-        <pre style="font-size:11px">az webapp deployment slot swap \
-  --name autodrive-chatbot \
-  --slot staging \
-  --target-slot production</pre>
-      </div>
+}</pre></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 10 — AUTOSCALING
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-3">
-  <div class="section-tag">Scaling</div><div class="slide-num">10</div>
+<!-- ═══ 11 AUTOSCALING ═══ -->
+<div class="slide bg2">
+  <div class="st">Scaling</div><div class="sn">11</div>
   <h2>Autoscaling — <span class="grad">Azure Monitor Rules</span></h2>
-  <div class="cols cols-2" style="gap:28px;align-items:start">
+  <div class="c2" style="align-items:start;gap:24px">
     <div>
-      <p style="margin-bottom:20px">Azure Monitor autoscale watches CPU and HTTP queue depth.
-      It adds or removes App Service instances automatically — no manual intervention.</p>
-      <table>
+      <p style="margin-bottom:16px">Azure Monitor watches CPU and HTTP queue. It automatically adds or removes App Service <strong>instances</strong> — no manual intervention ever needed.</p>
+      <table style="margin-bottom:14px">
         <thead><tr><th>Trigger</th><th>Threshold</th><th>Window</th><th>Action</th></tr></thead>
         <tbody>
-          <tr>
-            <td>CPU high</td><td>&gt; 70%</td><td>5 min</td>
-            <td><span class="badge badge-red">+ 1 instance</span></td>
-          </tr>
-          <tr>
-            <td>HTTP queue</td><td>&gt; 10 req</td><td>5 min</td>
-            <td><span class="badge badge-red">+ 1 instance</span></td>
-          </tr>
-          <tr>
-            <td>CPU low</td><td>&lt; 30%</td><td>10 min</td>
-            <td><span class="badge badge-green">− 1 instance</span></td>
-          </tr>
+          <tr><td>CPU high</td><td>&gt; 70%</td><td>5 min</td><td><span class="badge br">+ 1 instance</span></td></tr>
+          <tr><td>HTTP queue</td><td>&gt; 10 requests</td><td>5 min</td><td><span class="badge br">+ 1 instance</span></td></tr>
+          <tr><td>CPU low</td><td>&lt; 30%</td><td>10 min</td><td><span class="badge bg">− 1 instance</span></td></tr>
         </tbody>
       </table>
-      <div class="card card-orange small mt">
-        <strong>Capacity limits:</strong> Min 1 instance, Max 3 instances.
-        Prevents runaway scaling on student credits. Cooldown 5 min between scale events.
-      </div>
+      <div class="card co sm"><strong>Capacity limits:</strong> Min 1 instance, Max 3 instances. Prevents runaway scaling on student credits. 5-minute cooldown between scale events.</div>
+      <div class="card cr sm mt"><strong>🔥 Autoscale fired during our load tests!</strong> Azure Monitor sent an email alert confirming an instance was added when CPU exceeded 70%. Real proof the system works.</div>
     </div>
     <div>
-      <pre style="font-size:11px"><span class="cm"># Scale OUT rule — CPU > 70%</span>
+      <pre style="font-size:10px"><span class="cm"># Scale OUT — CPU > 70% for 5 min</span>
 <span class="kw">rule</span> {
   metric_trigger {
-    metric_name      = <span class="str">"CpuPercentage"</span>
-    time_window      = <span class="str">"PT5M"</span>
-    operator         = <span class="str">"GreaterThan"</span>
-    threshold        = <span class="num">70</span>
+    metric_name  = <span class="str">"CpuPercentage"</span>
+    time_window  = <span class="str">"PT5M"</span>
+    operator     = <span class="str">"GreaterThan"</span>
+    threshold    = <span class="num">70</span>
   }
   scale_action {
     direction = <span class="str">"Increase"</span>
@@ -638,8 +417,19 @@
     cooldown  = <span class="str">"PT5M"</span>
   }
 }
-
-<span class="cm"># Scale IN rule — CPU < 30%</span>
+<span class="cm"># HTTP Queue > 10 → instant scale out</span>
+<span class="kw">rule</span> {
+  metric_trigger {
+    metric_name  = <span class="str">"HttpQueueLength"</span>
+    threshold    = <span class="num">10</span>
+  }
+  scale_action {
+    direction = <span class="str">"Increase"</span>
+    value     = <span class="str">"1"</span>
+    cooldown  = <span class="str">"PT3M"</span>
+  }
+}
+<span class="cm"># Scale IN — CPU < 30% for 10 min</span>
 <span class="kw">rule</span> {
   metric_trigger {
     metric_name  = <span class="str">"CpuPercentage"</span>
@@ -653,171 +443,106 @@
     cooldown  = <span class="str">"PT10M"</span>
   }
 }</pre>
-      <div class="card card-green small mt">
-        <strong>HTTP Queue trigger</strong> also scales out when requests pile up — handles sudden traffic spikes (like a live demo) faster than CPU can react.
-      </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 11 — MONITORING & OBSERVABILITY
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">Monitoring</div><div class="slide-num">11</div>
+<!-- ═══ 12 MONITORING ═══ -->
+<div class="slide bg1">
+  <div class="st">Monitoring</div><div class="sn">12</div>
   <h2>Monitoring — <span class="grad">Full Observability Stack</span></h2>
-  <div class="cols cols-3" style="gap:20px;margin-bottom:20px">
-    <div class="card card-blue">
-      <div class="icon-circle ic-blue">📊</div>
-      <h3>Application Insights</h3>
-      <ul class="check-list">
-        <li>Request rate & response time</li>
-        <li>Exception tracking with stack trace</li>
-        <li>Dependency calls (Groq API latency)</li>
-        <li>Live Metrics stream</li>
-        <li>Free: 5 GB/month</li>
-      </ul>
-    </div>
-    <div class="card card-violet">
-      <div class="icon-circle ic-violet">📋</div>
-      <h3>Log Analytics (KQL)</h3>
-      <ul class="check-list">
-        <li>All logs centralised in one workspace</li>
-        <li>JSON-structured logs with correlation IDs</li>
-        <li>Queryable with KQL (like SQL for logs)</li>
-        <li>Retain logs 30 days</li>
-        <li>Free: 5 GB/day ingestion</li>
-      </ul>
-    </div>
-    <div class="card card-green">
-      <div class="icon-circle ic-green">🔔</div>
-      <h3>Azure Monitor Alerts</h3>
-      <ul class="check-list">
-        <li>Error rate &gt; 10 in 15 min → email</li>
-        <li>Avg response time &gt; 3s → email</li>
-        <li>CPU &gt; 80% → email</li>
-        <li>Action Group: ashad8949@gmail.com</li>
-      </ul>
-    </div>
+  <div class="c3" style="gap:16px;margin-bottom:16px">
+    <div class="card cb"><div style="font-size:24px;margin-bottom:8px">📊</div><h3>Application Insights</h3><ul class="ck"><li>Request rate & response time per endpoint</li><li>Exception tracking with full stack trace</li><li>Dependency calls (Groq API latency)</li><li><strong>Live Metrics</strong> — real-time stream</li><li>Free: 5 GB/month</li></ul></div>
+    <div class="card cv"><div style="font-size:24px;margin-bottom:8px">📋</div><h3>Log Analytics (KQL)</h3><ul class="ck"><li>All logs centralised in one workspace</li><li>JSON structured logs with correlation IDs</li><li>Every request has X-Request-ID header</li><li>Query with KQL (like SQL for logs)</li><li>Retain 30 days, free 5 GB/day</li></ul></div>
+    <div class="card cg"><div style="font-size:24px;margin-bottom:8px">🔔</div><h3>Azure Monitor Alerts</h3><ul class="ck"><li>Error rate &gt;10 in 15 min → email</li><li>Avg response &gt;3s → email</li><li>CPU &gt;80% → email</li><li>Autoscale events → email (PROOF!)</li><li>All wired to ashad8949@gmail.com</li></ul></div>
   </div>
-  <div class="card card-blue">
-    <h3 style="margin-bottom:10px">Structured Logging with Correlation IDs</h3>
-    <div class="cols cols-2" style="gap:20px;align-items:start">
-      <pre style="font-size:11px"><span class="cm"># Every request injects a unique ID</span>
+  <div class="card cb"><h3 style="margin-bottom:10px">Structured Logging with Correlation IDs</h3>
+    <div class="c2" style="gap:16px;align-items:start">
+      <pre style="font-size:10px"><span class="cm"># Every request gets a unique ID</span>
 <span class="kw">@app</span>.middleware(<span class="str">"http"</span>)
-<span class="kw">async def</span> <span class="fn">request_telemetry</span>(request, call_next):
+<span class="kw">async def</span> <span class="fn">telemetry</span>(request, call_next):
     req_id = request.headers.get(
         <span class="str">"X-Request-ID"</span>) <span class="kw">or</span> uuid4()[:8]
-    _request_id.set(req_id)   <span class="cm"># thread-local</span>
+    _request_id.set(req_id)
     response = <span class="kw">await</span> call_next(request)
     response.headers[<span class="str">"X-Request-ID"</span>] = req_id
     <span class="kw">return</span> response</pre>
-      <div>
-        <p style="margin-bottom:10px">Every log line includes the request ID — trace a single user's journey end-to-end through all log entries:</p>
-        <pre style="font-size:11px">{"time":"...","level":"INFO",
- "request_id":"<span class="str">a4f2c9d1</span>",
- "msg":"POST /chat/stream → 200  (847ms)"}
+      <div><p style="margin-bottom:8px">Every log line includes the ID — trace a user's full journey:</p>
+      <pre style="font-size:10px">{"level":"INFO","request_id":"<span class="str">a4f2</span>","msg":"POST /chat/stream → 200 (847ms)"}
 
-<span class="cm"># KQL query in Log Analytics:</span>
+<span class="cm"># KQL in Log Analytics:</span>
 AppTraces
-| where Properties.request_id == <span class="str">"a4f2c9d1"</span>
-| order by TimeGenerated asc</pre>
-      </div>
+| <span class="fn">where</span> Properties.request_id == <span class="str">"a4f2"</span>
+| <span class="fn">order by</span> TimeGenerated <span class="fn">asc</span></pre></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 12 — SECURITY
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">Security</div><div class="slide-num">12</div>
+<!-- ═══ 13 SECURITY ═══ -->
+<div class="slide bg3">
+  <div class="st">Security</div><div class="sn">13</div>
   <h2>Security — <span class="grad">Zero Trust Architecture</span></h2>
-  <div class="cols cols-2" style="gap:28px;align-items:start">
+  <div class="c2" style="align-items:start;gap:24px">
     <div>
-      <div class="card card-blue" style="margin-bottom:16px">
-        <div class="icon-circle ic-blue">🔐</div>
-        <h3>Azure Key Vault</h3>
-        <p>All secrets (GROQ_API_KEY, AZURE_OPENAI_KEY) stored in Key Vault.
-        App Service reads them at runtime using Key Vault references — secret never appears in app settings, logs, or code.</p>
-        <pre style="font-size:11px;margin-top:10px"><span class="cm"># In app_settings — not the actual key!</span>
-GROQ_API_KEY = <span class="str">"@Microsoft.KeyVault(
-  SecretUri=https://autodrive-kv-.../
-  secrets/groq-api-key/)"</span></pre>
-      </div>
-      <div class="card card-violet">
-        <div class="icon-circle ic-violet">🤝</div>
-        <h3>Managed Identity</h3>
-        <p>App Service has a <strong>User-Assigned Managed Identity</strong>.
-        Key Vault grants read access to this identity.
-        No username/password — Azure handles the token exchange automatically.</p>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card card-green">
-        <h3>✅ HTTPS Only</h3>
-        <p><code>https_only = true</code> in Terraform. All HTTP requests redirect to HTTPS. TLS 1.2+ enforced by Azure.</p>
-      </div>
-      <div class="card card-orange">
-        <h3>✅ CORS Policy</h3>
-        <p>Configurable via <code>ALLOWED_ORIGINS</code> env var. Restricts which frontend domains can call the API.</p>
-      </div>
-      <div class="card card-red">
-        <h3>✅ No Secrets in Code</h3>
-        <p>All secrets are environment variables. <code>.env</code> is in <code>.gitignore</code>. CI/CD uses GitHub Secrets — never committed.</p>
-      </div>
-      <div class="card card-blue">
-        <h3>✅ Soft-delete on Key Vault</h3>
-        <p>7-day retention if secrets are accidentally deleted. Prevents catastrophic data loss.</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 13 — RESILIENCE & HEALTH CHECKS
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-3">
-  <div class="section-tag">Resilience</div><div class="slide-num">13</div>
-  <h2>Resilience — <span class="grad">Self-Healing System</span></h2>
-  <div class="cols cols-2" style="gap:28px;align-items:start">
-    <div>
-      <div class="card card-green" style="margin-bottom:16px">
-        <h3>Health Check Auto-Restart</h3>
-        <p style="margin-bottom:10px">Azure polls <code>/health</code> every 60 seconds.
-        If the endpoint fails to respond for 2 minutes, Azure automatically restarts the container — no manual intervention.</p>
-        <pre style="font-size:11px"><span class="cm"># /health returns rich status</span>
-{
-  <span class="str">"status"</span>: <span class="str">"healthy"</span>,
-  <span class="str">"slot"</span>:   <span class="str">"production"</span>,
-  <span class="str">"provider"</span>: <span class="str">"groq"</span>,
-  <span class="str">"version"</span>: <span class="str">"1.0.0"</span>
-}
-
-<span class="cm"># /ready — checks RAG engine too</span>
-{
-  <span class="str">"status"</span>: <span class="str">"ready"</span>,
-  <span class="str">"provider"</span>: <span class="str">"groq"</span>
+      <div class="card cb" style="margin-bottom:14px">
+        <div style="font-size:22px;margin-bottom:8px">🔐</div><h3>Azure Key Vault</h3>
+        <p>All secrets stored in Key Vault. App Service has a <strong>User-Assigned Managed Identity</strong> — Azure handles token exchange automatically. Zero credentials in code, env vars, or CI logs.</p>
+        <pre style="font-size:10px;margin-top:10px"><span class="cm"># Terraform creates Key Vault + grants identity access</span>
+<span class="kw">resource</span> <span class="str">"azurerm_key_vault_secret"</span> <span class="str">"groq_api_key"</span> {
+  name         = <span class="str">"groq-api-key"</span>
+  value        = <span class="kw">var</span>.groq_api_key
+  key_vault_id = azurerm_key_vault.main.id
 }</pre>
       </div>
     </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card cg sm"><strong>✅ HTTPS Only</strong><br><code>https_only = true</code> in Terraform. All HTTP redirects to HTTPS. TLS 1.2+ enforced by Azure.</div>
+      <div class="card co sm"><strong>✅ CORS Policy</strong><br>Configurable via <code>ALLOWED_ORIGINS</code> env var. Controls which frontend domains can call the API.</div>
+      <div class="card cr sm"><strong>✅ No Secrets in Code</strong><br>All secrets are env vars. <code>.env</code> in <code>.gitignore</code>. CI/CD uses GitHub Secrets — never committed to git.</div>
+      <div class="card cv sm"><strong>✅ Managed Identity</strong><br>App reads Key Vault secrets at runtime via identity token. No username/password anywhere in the system.</div>
+      <div class="card cb sm"><strong>✅ Soft-delete</strong><br>Key Vault has 7-day retention. Secrets recoverable if accidentally deleted.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 14 HEALTH & RESILIENCE ═══ -->
+<div class="slide bg2">
+  <div class="st">Resilience</div><div class="sn">14</div>
+  <h2>Resilience — <span class="grad">Self-Healing System</span></h2>
+  <div class="c2" style="align-items:start;gap:24px">
     <div>
-      <div class="card card-orange" style="margin-bottom:16px">
-        <h3>Inventory Fallback Pattern</h3>
-        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:8px">
-          <div class="flow-box g" style="width:100%">1. Live API (autodriveai.duckdns.org)</div>
-          <div style="color:var(--muted);font-size:12px;padding-left:10px">↓ if API unreachable</div>
-          <div class="flow-box o" style="width:100%">2. In-memory cache (last successful fetch)</div>
-          <div style="color:var(--muted);font-size:12px;padding-left:10px">↓ if cache empty (cold start)</div>
-          <div class="flow-box r" style="width:100%">3. seed_data.json (emergency fallback)</div>
+      <div class="card cg" style="margin-bottom:14px">
+        <h3>Health Check Auto-Restart</h3>
+        <p style="margin-bottom:10px">Azure polls <code>/health</code> every 60 seconds. If it fails for 2 minutes, Azure <strong>automatically restarts the container</strong> — no human intervention needed.</p>
+        <pre style="font-size:10px"><span class="cm"># /health returns rich status</span>
+{
+  <span class="str">"status"</span>:   <span class="str">"healthy"</span>,
+  <span class="str">"slot"</span>:     <span class="str">"production"</span>,
+  <span class="str">"provider"</span>: <span class="str">"groq"</span>,
+  <span class="str">"version"</span>:  <span class="str">"1.0.0"</span>
+}
+
+<span class="cm"># /ready — checks RAG engine too</span>
+{ <span class="str">"status"</span>: <span class="str">"ready"</span>, <span class="str">"provider"</span>: <span class="str">"groq"</span> }</pre>
+      </div>
+    </div>
+    <div>
+      <div class="card co" style="margin-bottom:14px">
+        <h3>Inventory Fallback (Circuit Breaker)</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          <div class="fb g" style="width:100%;font-size:12px">1. Live API — autodriveai.duckdns.org/api/cars</div>
+          <div style="color:var(--muted);font-size:11px;padding-left:8px">↓ if API unreachable (timeout 8s)</div>
+          <div class="fb o" style="width:100%;font-size:12px">2. In-memory cache (last successful fetch)</div>
+          <div style="color:var(--muted);font-size:11px;padding-left:8px">↓ if cache empty (cold start)</div>
+          <div class="fb r" style="width:100%;font-size:12px">3. seed_data.json (emergency offline data)</div>
         </div>
       </div>
-      <div class="card card-blue">
+      <div class="card cb sm">
         <h3>Graceful Error Handling</h3>
-        <ul class="check-list">
-          <li>LLM timeout → returns user-friendly error message</li>
+        <ul class="ck">
+          <li>LLM timeout → user-friendly error message</li>
           <li>Voice transcription fail → explains in chat</li>
-          <li>Streaming error → partial response shown, error appended</li>
+          <li>Streaming error → partial response shown</li>
           <li>All errors logged with correlation ID for tracing</li>
         </ul>
       </div>
@@ -825,366 +550,217 @@ GROQ_API_KEY = <span class="str">"@Microsoft.KeyVault(
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 14 — DATA FLOW (REQUEST LIFECYCLE)
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">Data Flow</div><div class="slide-num">14</div>
+<!-- ═══ 15 DATA FLOW ═══ -->
+<div class="slide bg1">
+  <div class="st">Data Flow</div><div class="sn">15</div>
   <h2>Request Lifecycle — <span class="grad">End to End</span></h2>
-  <div class="cols cols-2" style="gap:28px;align-items:start">
-    <div class="arch" style="font-size:13px;line-height:2.2">
-<span class="hl">1. USER  →  BROWSER</span>
-   Types "SUVs under ₹20 lakh" → clicks Send
+  <div class="c2" style="align-items:start;gap:24px">
+    <div class="arch" style="font-size:12px;line-height:2.1">
+<span class="hl">1. USER</span>  Types "SUVs under ₹20 lakh" → Enter
 
-<span class="hl">2. BROWSER  →  AZURE APP SERVICE</span>
-   POST /chat/stream  (HTTPS, SSE)
-   Headers: X-Request-ID (correlation)
+<span class="hl">2. BROWSER → AZURE APP SERVICE</span>
+   POST /chat/stream  (HTTPS)
+   X-Request-ID header generated
 
 <span class="hl">3. FASTAPI MIDDLEWARE</span>
    Assigns request_id, starts latency timer
-   Injects id into all log lines
 
 <span class="hl">4. INVENTORY CACHE CHECK</span>
-   Cache fresh? → use memory (0ms overhead)
-   Stale? → fetch autodriveai.duckdns.org
+   Cache fresh? → serve from memory (0ms)
+   Stale? → fetch from autodriveai.duckdns.org
 
-<span class="hl">5. TF-IDF RETRIEVAL  (free, local)</span>
-   Scores 12 cars vs query → top 4 returned
+<span class="hl">5. TF-IDF RETRIEVAL  (local, free)</span>
+   Scores 12 cars vs query → top 3-5 returned
    Formats as ₹-priced context string
 
 <span class="hl">6. GROQ API  (LLaMA 3.3-70B)</span>
-   System prompt + context + history → LLM
    Streams tokens back via SSE
 
 <span class="hl">7. TAG PARSING  (main.py)</span>
-   [CAR_ID:2] → emit {"car_id":"2"} event
-   [ACTION: BOOK] → emit booking widget
+   [CAR_ID:2] → emit {"car_id":"2"}
+   [ACTION: BOOK] → show booking widget
 
-<span class="hl">8. BROWSER RENDERS</span>
-   Token-by-token streaming display
-   car_id event → deep-link button shown
+<span class="hl">8. BROWSER</span>  Token-by-token rendering + deep-link
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card card-blue small">
-        <strong>SSE Event Types</strong>
-        <pre style="font-size:11px;margin-top:8px">data: {"token": "Hyundai "}
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card cb sm"><strong>SSE Event Stream</strong>
+        <pre style="font-size:10px;margin-top:8px">data: {"token": "The Hyundai "}
 data: {"token": "Creta "}
-data: {"car_id": "2"}        <span class="cm">← deep-link</span>
+data: {"car_id": "2"}    <span class="cm">← deep-link</span>
 data: {"token": "at ₹14.50 lakh"}
 data: {"action": "BOOK_TEST_DRIVE 2"}
 data: {"done": true}</pre>
       </div>
-      <div class="card card-green small">
-        <strong>Voice Flow (additional)</strong>
-        <div class="flow" style="flex-direction:column;gap:6px;margin-top:8px;align-items:flex-start">
-          <div class="flow-box b" style="font-size:12px">🎤 MediaRecorder captures audio</div>
-          <div style="font-size:11px;color:var(--muted);padding-left:8px">↓ webm blob</div>
-          <div class="flow-box v" style="font-size:12px">POST /voice/transcribe</div>
-          <div style="font-size:11px;color:var(--muted);padding-left:8px">↓ Groq Whisper STT</div>
-          <div class="flow-box g" style="font-size:12px">transcript → sendMessage()</div>
-          <div style="font-size:11px;color:var(--muted);padding-left:8px">↓ Browser SpeechSynthesis</div>
-          <div class="flow-box o" style="font-size:12px">🔊 AI response read aloud</div>
+      <div class="card cg sm"><strong>Voice Flow</strong>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+          <div class="fb b" style="font-size:11px">🎤 MediaRecorder captures audio</div>
+          <div style="font-size:10px;color:var(--muted);padding-left:6px">↓ webm blob</div>
+          <div class="fb v" style="font-size:11px">POST /voice/transcribe → Groq Whisper</div>
+          <div style="font-size:10px;color:var(--muted);padding-left:6px">↓ transcript text</div>
+          <div class="fb g" style="font-size:11px">→ sendMessage() → same chat flow</div>
+          <div style="font-size:10px;color:var(--muted);padding-left:6px">↓ Browser SpeechSynthesis</div>
+          <div class="fb o" style="font-size:11px">🔊 AI response read aloud</div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 15 — LIVE INVENTORY INTEGRATION
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">Integration</div><div class="slide-num">15</div>
-  <h2>Live Inventory — <span class="grad">Three Services, One Truth</span></h2>
-  <div class="cols cols-3" style="gap:20px;margin-bottom:20px">
-    <div class="card card-violet" style="text-align:center">
-      <div style="font-size:36px;margin-bottom:8px">🗄️</div>
-      <h3>Friend's PostgreSQL</h3>
-      <p>Source of truth. Cars added/removed here via the AutoDrive admin panel.</p>
-      <div style="margin-top:12px"><span class="badge badge-violet">Azure Account 2</span></div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--muted)">→</div>
-    <div class="card card-blue" style="text-align:center">
-      <div style="font-size:36px;margin-bottom:8px">🌐</div>
-      <h3>REST API</h3>
-      <p><code>GET /api/cars</code> serves the inventory as JSON. CORS open, no auth.</p>
-      <div style="margin-top:12px"><span class="badge badge-blue">autodriveai.duckdns.org</span></div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--muted)">→</div>
-    <div style="display:none"></div>
-    <div class="card card-green" style="text-align:center;grid-column:span 1">
-      <div style="font-size:36px;margin-bottom:8px">🤖</div>
-      <h3>Chatbot RAG Cache</h3>
-      <p>Fetched at startup, refreshed daily. Force-refresh via <code>POST /inventory/refresh</code>.</p>
-      <div style="margin-top:12px"><span class="badge badge-green">Azure Account 1</span></div>
-    </div>
+<!-- ═══ 16 LIVE INVENTORY ═══ -->
+<div class="slide bg3">
+  <div class="st">Integration</div><div class="sn">16</div>
+  <h2>Live Inventory — <span class="grad">3 Accounts, 1 Truth</span></h2>
+  <div class="c3" style="gap:14px;margin-bottom:18px">
+    <div class="card cv" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🗄️</div><h3>Mahesh's PostgreSQL</h3><p>Source of truth. Cars added/edited here via the admin panel.</p><div style="margin-top:8px"><span class="badge bv">Account 2</span></div></div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--muted)">→</div>
+    <div class="card cb" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🌐</div><h3>REST API</h3><p><code>GET /api/cars</code> serves full inventory as JSON. CORS open, no auth needed.</p><div style="margin-top:8px"><span class="badge bb">autodriveai.duckdns.org</span></div></div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--muted)">→</div>
+    <div class="card cg" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🤖</div><h3>Chatbot RAG Cache</h3><p>Fetched at startup, refreshed daily. Manual refresh via <code>POST /inventory/refresh</code>.</p><div style="margin-top:8px"><span class="badge bg">Account 1</span></div></div>
   </div>
-  <div class="cols cols-2" style="gap:20px">
-    <div class="card card-orange small">
-      <strong>Demo Day Power Move:</strong> While the grader watches, your friend adds a new car to PostgreSQL.
-      You run <code>POST /inventory/refresh</code>. Ask the bot about the new car — it answers instantly.
-      Three Azure accounts, live synchronisation, visible in real time. 🔥
+  <div class="c2" style="gap:14px">
+    <div class="livecard">
+      <h3 style="color:#6ee7b7;margin-bottom:8px">🔥 Live Demo Moment</h3>
+      <p style="color:var(--text);font-size:13px">Mahesh adds a NEW car to his PostgreSQL during the demo. You run:</p>
+      <pre style="font-size:11px;margin-top:8px">curl -X POST https://autodrive-chatbot.azurewebsites.net/inventory/refresh</pre>
+      <p style="font-size:12px;margin-top:8px;color:#6ee7b7">Ask bot about the new car → it answers instantly. 3 Azure accounts, live synchronisation, visible in real time. 🎯</p>
     </div>
-    <div class="card card-blue small">
+    <div class="card cb sm">
       <strong>Caching Strategy:</strong>
-      <ul class="check-list">
+      <ul class="ck" style="margin-top:8px">
         <li>In-memory TTL cache: 24-hour refresh cycle</li>
-        <li>asyncio.Lock: no thundering-herd under concurrent requests</li>
-        <li>httpx async fetch: non-blocking, 8s timeout</li>
-        <li>Graceful fallback if API is down</li>
+        <li>asyncio.Lock: prevents thundering-herd under concurrent requests</li>
+        <li>httpx async fetch: non-blocking, 8-second timeout</li>
+        <li>Graceful fallback if friend's API is down</li>
+        <li>Force-refresh endpoint for live demo control</li>
       </ul>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 16 — COST ANALYSIS
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-3">
-  <div class="section-tag">Cost</div><div class="slide-num">16</div>
+<!-- ═══ 17 COST ═══ -->
+<div class="slide bg2">
+  <div class="st">Cost</div><div class="sn">17</div>
   <h2>Cost Analysis — <span class="grad">Student Budget Optimised</span></h2>
-  <table style="margin-bottom:20px">
-    <thead><tr><th>Service</th><th>Tier Used</th><th>Cost/Month</th><th>Why This Tier</th></tr></thead>
+  <table style="margin-bottom:16px">
+    <thead><tr><th>Service</th><th>Tier</th><th>Cost/Month</th><th>Why This Tier</th></tr></thead>
     <tbody>
-      <tr>
-        <td><strong>Azure App Service</strong></td>
-        <td>S1 Linux (demo) → B1 (normal)</td>
-        <td><span style="color:#fcd34d">$55 → $13</span></td>
-        <td>S1 for autoscale + slots demo; revert to B1 after</td>
-      </tr>
-      <tr>
-        <td><strong>Azure OpenAI</strong></td>
-        <td>text-embedding-3-large (1 TPM)</td>
-        <td><span style="color:#6ee7b7">~$0</span></td>
-        <td>Only embeddings; Groq handles LLM so barely used</td>
-      </tr>
-      <tr>
-        <td><strong>Application Insights</strong></td>
-        <td>Free tier (5 GB/month)</td>
-        <td><span style="color:#6ee7b7">$0</span></td>
-        <td>More than enough for demo traffic</td>
-      </tr>
-      <tr>
-        <td><strong>Log Analytics</strong></td>
-        <td>Pay-per-GB (5 GB free)</td>
-        <td><span style="color:#6ee7b7">$0</span></td>
-        <td>Demo generates &lt;100 MB of logs</td>
-      </tr>
-      <tr>
-        <td><strong>Key Vault</strong></td>
-        <td>Standard</td>
-        <td><span style="color:#6ee7b7">~$0.03</span></td>
-        <td>$0.03 per 10,000 operations</td>
-      </tr>
-      <tr>
-        <td><strong>GitHub Container Registry</strong></td>
-        <td>Free (public package)</td>
-        <td><span style="color:#6ee7b7">$0</span></td>
-        <td>Replaced Azure Container Registry ($5+/month)</td>
-      </tr>
-      <tr>
-        <td><strong>Groq API (LLM + STT)</strong></td>
-        <td>Free tier</td>
-        <td><span style="color:#6ee7b7">$0</span></td>
-        <td>Replaced Azure OpenAI chat (expensive, quota-blocked)</td>
-      </tr>
-      <tr style="background:rgba(16,185,129,.05)">
-        <td><strong>Total (demo day)</strong></td><td></td>
-        <td><strong style="color:#6ee7b7">~$55/month</strong></td>
-        <td>Covered by Azure student credits ($100/year)</td>
-      </tr>
+      <tr><td><strong>Azure App Service</strong></td><td>S1 Linux (demo) → B1 (normal)</td><td style="color:#fcd34d">$55 → $13</td><td>S1 for autoscale + slots; revert to B1 after demo</td></tr>
+      <tr><td><strong>Azure OpenAI</strong></td><td>text-embedding-3-large (1 TPM)</td><td style="color:#6ee7b7">~$0</td><td>Only for embeddings upgrade path; not used now</td></tr>
+      <tr><td><strong>Application Insights</strong></td><td>Free (5 GB/month)</td><td style="color:#6ee7b7">$0</td><td>More than enough for demo traffic</td></tr>
+      <tr><td><strong>Log Analytics</strong></td><td>Pay-per-GB (5 GB free)</td><td style="color:#6ee7b7">$0</td><td>Demo generates &lt;100 MB of logs</td></tr>
+      <tr><td><strong>Key Vault</strong></td><td>Standard</td><td style="color:#6ee7b7">~$0.03</td><td>$0.03 per 10,000 operations</td></tr>
+      <tr><td><strong>GitHub Container Registry</strong></td><td>Free (public package)</td><td style="color:#6ee7b7">$0</td><td>Replaced Azure Container Registry (~$5/month)</td></tr>
+      <tr><td><strong>Groq API (LLM + STT)</strong></td><td>Free tier</td><td style="color:#6ee7b7">$0</td><td>Replaced Azure OpenAI chat (expensive + quota-blocked)</td></tr>
+      <tr style="background:rgba(16,185,129,.05)"><td><strong>Total (demo)</strong></td><td></td><td><strong style="color:#6ee7b7">~$55/month</strong></td><td>Covered by Azure student credits ($100/year)</td></tr>
     </tbody>
   </table>
-  <div class="card card-green small">
-    <strong>After demo:</strong> Switch <code>app_service_sku = "B1"</code> in terraform.tfvars → run <code>terraform apply</code> → cost drops to <strong>~$13/month</strong>.
-    Autoscale and deployment slots are disabled but everything else continues working.
-  </div>
+  <div class="card cg sm"><strong>After demo:</strong> Change <code>app_service_sku = "B1"</code> in terraform.tfvars → run <code>terraform apply</code> → cost drops to <strong>~$13/month</strong>. Autoscale and slots disabled but everything else continues working.</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 17 — ALL CLOUD CONCEPTS COVERED
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-2">
-  <div class="section-tag">Summary</div><div class="slide-num">17</div>
+<!-- ═══ 18 ALL CLOUD CONCEPTS ═══ -->
+<div class="slide bg1">
+  <div class="st">Summary</div><div class="sn">18</div>
   <h2>Cloud Concepts — <span class="grad">Complete Coverage</span></h2>
-  <div class="cols cols-3" style="gap:16px">
-    <div class="card card-blue small">
-      <strong>🏗️ IaC — Terraform</strong>
-      <p>All 13 Azure resources declared as code. Reproducible, version-controlled, peer-reviewable.</p>
-    </div>
-    <div class="card card-green small">
-      <strong>🐳 Containerisation</strong>
-      <p>Multi-stage Docker build. Images in GitHub Container Registry. Azure pulls by SHA.</p>
-    </div>
-    <div class="card card-orange small">
-      <strong>🔁 CI/CD Pipeline</strong>
-      <p>4-stage GitHub Actions: test → build → staging → production. Auto-rollback on failure.</p>
-    </div>
-    <div class="card card-violet small">
-      <strong>🔀 Blue-Green Deploy</strong>
-      <p>Deployment slots. Zero-downtime slot swap. Old version kept warm for instant rollback.</p>
-    </div>
-    <div class="card card-blue small">
-      <strong>📈 Autoscaling</strong>
-      <p>CPU & HTTP queue triggers. Min 1, Max 3 instances. Scale-in after sustained low load.</p>
-    </div>
-    <div class="card card-green small">
-      <strong>❤️ Health Checks</strong>
-      <p><code>/health</code> + <code>/ready</code> endpoints. Azure auto-restarts on failure. Checked in CI/CD too.</p>
-    </div>
-    <div class="card card-orange small">
-      <strong>📊 Monitoring</strong>
-      <p>Application Insights: request rate, latency, exceptions. Live Metrics dashboard.</p>
-    </div>
-    <div class="card card-red small">
-      <strong>🔔 Alerting</strong>
-      <p>3 alert rules: error rate, slow response, high CPU. Email notifications via Action Group.</p>
-    </div>
-    <div class="card card-violet small">
-      <strong>📋 Distributed Tracing</strong>
-      <p>X-Request-ID header. JSON structured logs. KQL queries in Log Analytics.</p>
-    </div>
-    <div class="card card-blue small">
-      <strong>🔐 Secrets Mgmt</strong>
-      <p>Azure Key Vault + Managed Identity. Zero credentials in code, env vars, or CI/CD logs.</p>
-    </div>
-    <div class="card card-green small">
-      <strong>🛡️ Security</strong>
-      <p>HTTPS-only, CORS policy, soft-delete on Key Vault, no public IP on secrets.</p>
-    </div>
-    <div class="card card-orange small">
-      <strong>🔄 Resilience</strong>
-      <p>Circuit-breaker fallback for inventory. Graceful degradation. Auto-restart on crash.</p>
-    </div>
+  <div class="c3" style="gap:12px">
+    <div class="card cb sm"><strong>🏗️ IaC — Terraform</strong><p>All 13 Azure resources as code. <code>terraform apply</code> rebuilds everything.</p></div>
+    <div class="card cg sm"><strong>🐳 Containerisation</strong><p>Multi-stage Docker build. GitHub Container Registry. SHA-tagged images.</p></div>
+    <div class="card co sm"><strong>🔁 CI/CD Pipeline</strong><p>4-stage GitHub Actions. Test gate → Build → Staging → Production swap.</p></div>
+    <div class="card cv sm"><strong>🔀 Blue-Green Deploy</strong><p>Deployment slots. Zero-downtime atomic swap. Instant rollback.</p></div>
+    <div class="card cb sm"><strong>📈 Autoscaling</strong><p>3 rules: CPU high, HTTP queue, CPU low. Min 1 → Max 3 instances.</p></div>
+    <div class="card cg sm"><strong>❤️ Health Checks</strong><p><code>/health</code> + <code>/ready</code>. Azure auto-restarts on failure. Checked in CI/CD.</p></div>
+    <div class="card co sm"><strong>📊 App Insights</strong><p>Request rate, latency, exceptions. Live Metrics stream.</p></div>
+    <div class="card cr sm"><strong>🔔 Monitor Alerts</strong><p>3 rules: error rate, slow response, high CPU. Email via Action Group.</p></div>
+    <div class="card cv sm"><strong>📋 Distributed Tracing</strong><p>X-Request-ID header. JSON structured logs. KQL queries in Log Analytics.</p></div>
+    <div class="card cb sm"><strong>🔐 Key Vault</strong><p>All secrets stored in Key Vault. App reads via Managed Identity.</p></div>
+    <div class="card cg sm"><strong>🛡️ Security</strong><p>HTTPS-only, CORS, no credentials in code, soft-delete.</p></div>
+    <div class="card co sm"><strong>🔄 Resilience</strong><p>Circuit-breaker fallback for inventory. Graceful degradation.</p></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 18 — DEMO SCRIPT
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
-  <div class="section-tag">Demo</div><div class="slide-num">18</div>
-  <h2>Demo Script — <span class="grad">What to Show</span></h2>
-  <div class="cols cols-2" style="gap:28px">
+<!-- ═══ 19 LIVE DEMO GUIDE ═══ -->
+<div class="slide bg3">
+  <div class="st">Live Demo</div><div class="sn">19</div>
+  <h2>Live Demo Script — <span class="grad">Show the Professor</span></h2>
+  <div class="c2" style="gap:20px">
     <div>
-      <h3 style="color:#93c5fd;margin-bottom:16px">🎯 High-Impact Demo Moments</h3>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="card small" style="border-left:3px solid var(--green)">
-          <strong>1. Live inventory match</strong><br>
-          Ask "Show me diesel SUVs" → bot lists Creta, Fortuner, XUV700 with ₹ prices matching the website exactly.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--blue)">
-          <strong>2. Deep-link in action</strong><br>
-          Bot mentions "Hyundai Creta [CAR_ID:2]" → frontend shows a clickable card → one click → /cars/2.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--violet)">
-          <strong>3. Voice assistant</strong><br>
-          Open /voice, hold Space, say "what's the cheapest car" → bot answers in audio, shows conversation.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--orange)">
-          <strong>4. Live sync (3-account moment)</strong><br>
-          Friend adds car on their site → you run POST /inventory/refresh → bot knows about it immediately.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--red)">
-          <strong>5. Test drive booking</strong><br>
-          Ask "book a test drive for Nexon EV" → bot shows slot picker widget inline.
-        </div>
-      </div>
+      <h3 style="color:#6ee7b7;margin-bottom:12px">🎯 High-Impact Moments (5 min)</h3>
+      <div class="step"><div class="stepnum">1</div><div><strong>Live chatbot</strong> — Open <code>autodrive-chatbot.azurewebsites.net</code> → ask "SUVs under ₹20 lakh" → show Indian cars, ₹ prices, real-time streaming.</div></div>
+      <div class="step"><div class="stepnum">2</div><div><strong>Application Insights LIVE</strong> — Open Azure portal → App Insights → Live Metrics → ask another question → watch the request appear in real time with latency.</div></div>
+      <div class="step"><div class="stepnum">3</div><div><strong>GitHub Actions</strong> — Show <code>github.com/Ashad8949/AutoDrive/actions</code> → 4 green stages → explain each gate.</div></div>
+      <div class="step"><div class="stepnum">4</div><div><strong>Autoscale email</strong> — Show the email Azure Monitor sent when CPU > 70% — <strong>proof autoscaling fired in production</strong>.</div></div>
+      <div class="step"><div class="stepnum">5</div><div><strong>Azure Portal</strong> → App Service → Scale Out → show the 3 rules configured → Deployment Slots → show staging + production.</div></div>
     </div>
     <div>
-      <h3 style="color:#6ee7b7;margin-bottom:16px">☁️ Cloud Architecture to Explain</h3>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="card small" style="border-left:3px solid var(--blue)">
-          <strong>Show Azure Portal</strong><br>
-          autodrive-chatbot app service → Deployment slots (staging + production) → Autoscale settings.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--green)">
-          <strong>Show Application Insights</strong><br>
-          Live Metrics tab — shows real-time requests as you chat. Requests blade — response time histogram.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--violet)">
-          <strong>Show GitHub Actions</strong><br>
-          Last workflow run — 4 stages visible, green checkmarks. Point to the auto-rollback code.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--orange)">
-          <strong>Show Key Vault</strong><br>
-          autodrive-kv → Secrets → groq-api-key (value hidden). App Service → Configuration → shows @KeyVault reference.
-        </div>
-        <div class="card small" style="border-left:3px solid var(--red)">
-          <strong>Show Terraform</strong><br>
-          Open container_apps.tf — "every resource you saw in the portal is defined here as code".
-        </div>
+      <h3 style="color:#93c5fd;margin-bottom:12px">🔗 URLs to Open Before Presentation</h3>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="card sm cb"><strong>1. Chatbot live</strong><br><code style="color:#93c5fd;font-size:11px">https://autodrive-chatbot.azurewebsites.net</code></div>
+        <div class="card sm cv"><strong>2. GitHub Actions</strong><br><code style="color:#c4b5fd;font-size:11px">github.com/Ashad8949/AutoDrive/actions</code></div>
+        <div class="card sm cg"><strong>3. Azure Portal — App Service</strong><br><code style="color:#6ee7b7;font-size:11px">portal.azure.com → autodrive-chatbot</code></div>
+        <div class="card sm co"><strong>4. App Insights Live Metrics</strong><br><code style="color:#fcd34d;font-size:11px">portal.azure.com → autodrive-insights → Live Metrics</code></div>
+        <div class="card sm cr"><strong>5. GitHub Repo (show Terraform files)</strong><br><code style="color:#fca5a5;font-size:11px">github.com/Ashad8949/AutoDrive/tree/master/terraform</code></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     SLIDE 19 — THANK YOU
-═══════════════════════════════════════════════════════════════════ -->
-<div class="slide bg-1">
+<!-- ═══ 20 WHAT PROFESSOR WILL ASK ═══ -->
+<div class="slide bg2">
+  <div class="st">Preparation</div><div class="sn">20</div>
+  <h2>Professor Will Ask — <span class="grad">Be Ready</span></h2>
+  <div class="c2" style="gap:20px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card cb sm"><strong>Q: How does autoscaling work?</strong><br>A: Azure Monitor watches CPU and HTTP queue. When CPU &gt;70% for 5 min, it adds one App Service instance (max 3). When CPU &lt;30% for 10 min, it removes one. We got an autoscale email alert — proof it fired in production.</div>
+      <div class="card cv sm"><strong>Q: How many instances/pods are running?</strong><br>A: Azure App Service uses "instances" (not pods — that's Kubernetes). Currently min 1, max 3. Autoscale adds/removes instances. Can show in portal under "Scale Out" → "Run history".</div>
+      <div class="card cg sm"><strong>Q: What happens if the app crashes?</strong><br>A: Azure polls /health every 60s. If it fails for 2 minutes, it auto-restarts the container. Zero manual action needed. Also the CI/CD won't promote broken code — staging health check blocks it.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card co sm"><strong>Q: How is data kept fresh?</strong><br>A: Inventory fetched from Mahesh's live API at startup, cached for 24h, refreshed by background task. Manual refresh via POST /inventory/refresh for demo. If API down, falls back to seed data (circuit breaker pattern).</div>
+      <div class="card cr sm"><strong>Q: How are secrets managed?</strong><br>A: Azure Key Vault. App Service has a Managed Identity — Azure issues tokens automatically. No credentials in code, Git, or CI/CD logs. Key Vault has soft-delete for recovery.</div>
+      <div class="card cb sm"><strong>Q: What is RAG and why not fine-tuning?</strong><br>A: RAG fetches live inventory data at query time. Fine-tuning bakes data into the model — can't be updated without retraining (expensive, slow). RAG means the bot always knows the current inventory.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 21 THANK YOU ═══ -->
+<div class="slide bg1">
   <div style="text-align:center;max-width:700px;margin:0 auto">
-    <div style="font-size:56px;margin-bottom:24px">🚗</div>
-    <h1 style="font-size:48px"><span class="grad">Thank You</span></h1>
-    <p class="subtitle" style="font-size:18px;margin-top:20px">
-      AutoDrive AI — A cloud-native RAG chatbot built with<br>
-      Azure App Service · Terraform · GitHub Actions · Groq · Key Vault
-    </p>
-    <div class="divider" style="margin:36px auto;max-width:400px"></div>
-    <div class="cols cols-3" style="gap:16px;margin-top:8px">
-      <div class="metric"><div class="metric-num grad">13</div><div class="metric-label">Azure Resources</div></div>
-      <div class="metric"><div class="metric-num grad-green">4</div><div class="metric-label">CI/CD Stages</div></div>
-      <div class="metric"><div class="metric-num" style="color:#fcd34d">$0</div><div class="metric-label">LLM Cost</div></div>
+    <div style="font-size:52px;margin-bottom:20px">🚗</div>
+    <h1 style="font-size:44px"><span class="grad">Thank You</span></h1>
+    <p class="sub" style="font-size:16px;margin-top:18px">AutoDrive AI — Production-grade cloud-native RAG chatbot<br>Azure App Service · Terraform · GitHub Actions · Groq · Key Vault · App Insights</p>
+    <div class="div" style="margin:28px auto;max-width:400px"></div>
+    <div class="c4" style="gap:14px;margin-top:8px">
+      <div class="met"><div class="mn grad">13</div><div class="ml">Azure Resources</div></div>
+      <div class="met"><div class="mn gg">4</div><div class="ml">CI/CD Stages</div></div>
+      <div class="met"><div class="mn go">12</div><div class="ml">Cloud Concepts</div></div>
+      <div class="met"><div class="mn" style="color:#fcd34d">$0</div><div class="ml">LLM Cost</div></div>
     </div>
-    <div style="margin-top:36px">
-      <span class="badge badge-blue" style="font-size:13px;padding:8px 18px">
-        🌐 https://autodrive-chatbot.azurewebsites.net
-      </span>
+    <div style="margin-top:28px">
+      <span class="badge bb" style="font-size:12px;padding:7px 16px">🌐 https://autodrive-chatbot.azurewebsites.net</span>
     </div>
-    <p style="margin-top:40px;font-size:13px;color:rgba(255,255,255,.2)">
-      Ashad Alam · 2025JTM2079 · IIT Delhi · Cloud Computing · May 2025
-    </p>
+    <div style="margin-top:10px">
+      <span class="badge bv" style="font-size:12px;padding:7px 16px">📁 github.com/Ashad8949/AutoDrive</span>
+    </div>
+    <p style="margin-top:32px;font-size:12px;color:rgba(255,255,255,.18)">Ashad Alam · 2025JTM2079 · IIT Delhi · Cloud Computing · May 2025</p>
   </div>
 </div>
 
 </div><!-- /deck -->
 
-<!-- ── Navigation ── -->
 <div class="nav">
-  <button onclick="go(-1)" title="Previous (←)">&#8592;</button>
-  <span id="counter">1 / 19</span>
-  <button onclick="go(1)" title="Next (→)">&#8594;</button>
+  <button onclick="go(-1)">&#8592;</button>
+  <span id="ctr">1 / 21</span>
+  <button onclick="go(1)">&#8594;</button>
 </div>
 
 <script>
-  const slides = document.querySelectorAll('.slide');
-  const counter = document.getElementById('counter');
-  const progress = document.getElementById('progress');
-  let cur = 0;
-
-  function show(n) {
-    slides[cur].classList.remove('active');
-    cur = Math.max(0, Math.min(n, slides.length - 1));
-    slides[cur].classList.add('active');
-    counter.textContent = (cur + 1) + ' / ' + slides.length;
-    progress.style.width = ((cur + 1) / slides.length * 100) + '%';
-  }
-
-  function go(dir) { show(cur + dir); }
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); go(-1); }
-  });
-
-  // Touch swipe
-  let tx = 0;
-  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
-  document.addEventListener('touchend', e => {
-    const dx = tx - e.changedTouches[0].clientX;
-    if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
-  });
-
+  const slides=document.querySelectorAll('.slide'),ctr=document.getElementById('ctr'),prog=document.getElementById('prog');
+  let cur=0;
+  function show(n){slides[cur].classList.remove('active');cur=Math.max(0,Math.min(n,slides.length-1));slides[cur].classList.add('active');ctr.textContent=(cur+1)+' / '+slides.length;prog.style.width=((cur+1)/slides.length*100)+'%'}
+  function go(d){show(cur+d)}
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(1)}if(e.key==='ArrowLeft'){e.preventDefault();go(-1)}});
+  let tx=0;
+  document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+  document.addEventListener('touchend',e=>{const dx=tx-e.changedTouches[0].clientX;if(Math.abs(dx)>50)go(dx>0?1:-1)});
   show(0);
 </script>
 </body>
