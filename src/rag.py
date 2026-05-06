@@ -97,7 +97,7 @@ def _car_to_text(car: dict) -> str:
         f"Color: {car.get('color')} | "
         f"Owners: {car.get('owners', 1)} | "
         f"Location: {car.get('location')} | "
-        f"Rating: {car.get('rating', 0)}/5 ({car.get('reviews', 0)} reviews) | "
+        f"Rating: {car.get('rating') or 'N/A'}/5 ({car.get('reviews') or 0} reviews) | "
         f"Features: {features} | "
         f"Details: {car.get('description', '')}"
     )
