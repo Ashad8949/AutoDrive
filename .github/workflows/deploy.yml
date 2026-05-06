@@ -107,12 +107,19 @@ jobs:
             echo "Attempt $attempt failed, waiting 20s..."
             sleep 20
           done
-          # Set GROQ_API_KEY directly (Key Vault reference does not resolve reliably)
+          # Set env vars directly — clear Azure OpenAI to prevent 401 fallback
           az webapp config appsettings set \
             --name autodrive-chatbot \
             --resource-group autodrive-rg \
             --slot staging \
-            --settings GROQ_API_KEY="${{ secrets.GROQ_API_KEY }}" GROQ_MODEL="llama-3.3-70b-versatile" WEBSITES_PORT="8002" PYTHONPATH="/app" ALLOWED_ORIGINS="*"
+            --settings \
+              GROQ_API_KEY="${{ secrets.GROQ_API_KEY }}" \
+              GROQ_MODEL="llama-3.3-70b-versatile" \
+              AZURE_OPENAI_KEY="" \
+              AZURE_OPENAI_ENDPOINT="" \
+              WEBSITES_PORT="8002" \
+              PYTHONPATH="/app" \
+              ALLOWED_ORIGINS="*"
           az webapp restart \
             --name autodrive-chatbot \
             --resource-group autodrive-rg \

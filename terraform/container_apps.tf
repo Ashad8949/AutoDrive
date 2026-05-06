@@ -42,10 +42,9 @@ resource "azurerm_linux_web_app" "chatbot" {
     GROQ_API_KEY  = var.groq_api_key
     GROQ_MODEL    = "llama-3.3-70b-versatile"
 
-    # ── Azure OpenAI (embeddings fallback) ──────────────────────────
-    AZURE_OPENAI_ENDPOINT             = data.azurerm_cognitive_account.openai.endpoint
-    AZURE_OPENAI_KEY                  = var.azure_openai_key
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = "text-embedding-3-large"
+    # Azure OpenAI intentionally left empty — Groq handles LLM + TF-IDF handles retrieval
+    AZURE_OPENAI_KEY      = ""
+    AZURE_OPENAI_ENDPOINT = ""
 
     # ── App Insights telemetry ───────────────────────────────────────
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.main.connection_string
