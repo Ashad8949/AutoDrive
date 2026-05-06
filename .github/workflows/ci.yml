@@ -22,10 +22,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check imports
+        env:
+          GROQ_API_KEY: sk-test-fake-groq-key-for-ci
+        run: python -c "from src.main import app; print('✅ Import OK')"
+
       - name: Run tests
         env:
           GROQ_API_KEY: sk-test-fake-groq-key-for-ci
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=long -s
 
       - name: Verify Docker build
         run: docker build -t autodrive-chatbot:ci-test .
