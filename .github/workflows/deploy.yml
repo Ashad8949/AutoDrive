@@ -97,31 +97,25 @@ jobs:
 
       - name: Wait for staging to be healthy
         run: |
-          echo "Waiting for staging slot to start..."
-          for i in $(seq 1 12); do
-            STATUS=$(az webapp show \
-              --name autodrive-chatbot \
-              --resource-group autodrive-rg \
-              --slot staging \
-              --query "state" -o tsv)
-            echo "Attempt $i: $STATUS"
-            if [ "$STATUS" = "Running" ]; then
-              # Check health endpoint
-              SLOT_URL=$(az webapp show \
-                --name autodrive-chatbot \
-                --resource-group autodrive-rg \
-                --slot staging \
-                --query "defaultHostName" -o tsv)
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://$SLOT_URL/health" || echo "000")
-              echo "Health check HTTP $HTTP_CODE"
-              if [ "$HTTP_CODE" = "200" ]; then
-                echo "Staging is healthy!"
-                exit 0
-              fi
+          SLOT_URL=$(az webapp show \
+            --name autodrive-chatbot \
+            --resource-group autodrive-rg \
+            --slot staging \
+            --query "defaultHostName" -o tsv)
+          echo "Staging URL: https://$SLOT_URL"
+          echo "Waiting for staging container to start (up to 5 min)..."
+          for i in $(seq 1 20); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 "https://$SLOT_URL/health" || echo "000")
+            echo "Attempt $i/20: HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Staging is healthy! Waiting 60s extra for Azure warm-up..."
+              sleep 60
+              exit 0
             fi
             sleep 15
           done
-          echo "Staging health check failed after 3 minutes"
+          echo "Staging health check failed after 5 minutes"
           exit 1
 
   # ── Stage 4: Swap staging → production ────────────────────────────
@@ -139,11 +133,24 @@ jobs:
 
       - name: Swap staging → production (zero-downtime)
         run: |
-          az webapp deployment slot swap \
-            --name autodrive-chatbot \
-            --resource-group autodrive-rg \
-            --slot staging \
-            --target-slot production
+          for attempt in 1 2 3; do
+            echo "Swap attempt $attempt..."
+            if az webapp deployment slot swap \
+              --name autodrive-chatbot \
+              --resource-group autodrive-rg \
+              --slot staging \
+              --target-slot production; then
+              echo "Swap successful!"
+              break
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Swap failed, waiting 30s before retry..."
+              sleep 30
+            else
+              echo "All swap attempts failed"
+              exit 1
+            fi
+          done
 
       - name: Verify production health
         run: |
