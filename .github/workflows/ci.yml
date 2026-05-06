@@ -30,7 +30,8 @@ jobs:
       - name: Run tests
         env:
           GROQ_API_KEY: sk-test-fake-groq-key-for-ci
-        run: pytest tests/ -v --tb=long -s
+          PYTHONPATH: .
+        run: pytest tests/ -v --tb=short
 
       - name: Verify Docker build
         run: docker build -t autodrive-chatbot:ci-test .
