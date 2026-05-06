@@ -70,7 +70,7 @@ async def test_chat_empty_message():
         from src.main import app
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post("/chat/stream", json={"session_id": "t", "message": ""})
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)  # Pydantic min_length returns 422
 
 
 async def test_chat_stream_returns_tokens():
