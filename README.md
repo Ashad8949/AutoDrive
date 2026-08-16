@@ -1,4 +1,4 @@
-# AutoDrive Chatbot Service 🚗🤖
+# AutoDrive Chatbot Service 🚗🤖 (v2.0)
 
 An intelligent, LLM-powered Retrieval-Augmented Generation (RAG) chatbot for the AutoDrive car dealership.
 
@@ -6,75 +6,45 @@ This service allows users to ask questions about the current car inventory, get 
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture (v2.0)
 
-The chatbot is built on a **Dual-Mode Architecture** designed to be 100% free for local student development, while seamlessly scaling to Azure Enterprise services for production.
+The chatbot has been upgraded to a **state-of-the-art Agentic RAG v2.0** architecture, featuring hybrid search, re-ranking, and a corrective feedback loop (CRAG) to guarantee zero hallucination.
 
-### System Architecture Diagram
-
-
-```mermaid
-architecture-beta
-    group user_layer(cloud)[User Layer]
-    group frontend(server)[Frontend]
-    group chatbot_service(server)[Chatbot Microservice]
-    group data_layer(database)[Data Layer]
-    group ai_providers(cloud)[AI Providers]
-
-    service browser(internet)[Web Browser] in user_layer
-    service nextjs(server)[Next.js Web App] in frontend
-    service fastapi(server)[FastAPI Server] in chatbot_service
-    service history(database)[Redis Chat History] in chatbot_service
-    
-    service pg(database)[PostgreSQL] in data_layer
-    service vector(database)[Azure AI Search / FAISS] in data_layer
-    
-    service openai(cloud)[Azure OpenAI / Ollama] in ai_providers
-
-    browser:R --> L:nextjs
-    nextjs:B --> T:fastapi
-    
-    fastapi:R --> L:history
-    fastapi:R --> L:vector
-    fastapi:B --> T:openai
-    
-    vector:B -.-> T:pg
-```
-
+### Key v2.0 Upgrades
+- **Hybrid Retrieval**: Combines Dense Vector Search (FAISS + sentence-transformers) with Sparse Keyword Search (BM25) using **Reciprocal Rank Fusion (RRF)** for maximum recall.
+- **Cross-Encoder Re-Ranking**: Uses `ms-marco-MiniLM` to re-rank the retrieved documents for absolute precision.
+- **Agentic CRAG**: Corrective RAG state machine (built with LangGraph concepts) that grades document relevance and automatically rewrites/expands queries if the initial retrieval is poor.
+- **Advanced Chunking**: 5 different chunking strategies including contextual and parent-document retrieval.
+- **Knowledge Graph (GraphRAG)**: `NetworkX`-powered entity extraction connecting cars, brands, and features for complex multi-hop queries.
+- **Production Hardening**: Semantic response caching to reduce LLM calls, and safety guardrails against prompt injection and PII leaks.
+- **Evaluation Pipeline**: Built-in SQuAD-style metrics (Exact Match, F1, NDCG, MRR) with statistical significance testing.
 
 ### Core Stack
 - **Framework**: `FastAPI` (Python)
 - **RAG Orchestration**: `LangChain`
-- **UI**: Standalone Vanilla HTML/JS/CSS widget with Server-Sent Events (SSE) streaming.
-- **Containerization**: `Docker`
-
-### Dual-Mode Resources
-| Component | 🟢 Local Dev Mode (FREE) | 🔵 Production Azure Mode |
-| :--- | :--- | :--- |
-| **LLM Provider** | **Ollama** (Llama 3 locally) | Azure OpenAI (`gpt-4o`) |
-| **Embeddings** | **TF-IDF** (sklearn, local) | Azure OpenAI (`text-embedding-`)|
-| **Vector DB** | **FAISS** / In-Memory Array | Azure AI Search |
-| **Chat History**| **In-Memory** Dictionary | Redis |
-| **Data Source** | `seed_data.json` | PostgreSQL (Main App) |
+- **Models**: `LLaMA 3.3-70B` (via Groq API)
+- **Vector DB / Graph**: `FAISS` / `NetworkX`
+- **Deployment**: `Docker` + `Terraform` on Azure
 
 ---
 
 ## ✨ Features
 
-- **Semantic Inventory Search**: Ask questions like "Show me SUVs under $40k" and get exact matches based on context.
-- **Test Drive Booking Detection**: The LLM detects when a user wants to book a test drive, intercepts the intent via `[ACTION: BOOK_TEST_DRIVE <car_id>]`, and dynamically renders a booking calendar widget in the UI.
-- **Real-time Streaming**: Responses stream token-by-token directly to the UI using Server-Sent Events (`/chat/stream`).
-- **Conversation Memory**: Remembers the last 10 messages of context per session ID so follow-up questions work smoothly.
+- **Semantic Inventory Search**: Ask questions like "Show me SUVs under 40k" and get exact matches based on context.
+- **Zero Hallucination Guarantee**: Grounding checkers verify all LLM output against the retrieved inventory data before responding.
+- **Test Drive Booking Detection**: The LLM intercepts booking intents via `[ACTION: BOOK_TEST_DRIVE <car_id>]` and dynamically renders a calendar widget.
+- **Real-time Streaming**: Responses stream token-by-token directly to the UI using Server-Sent Events (`/chat/v2/stream`).
+- **Conversation Memory**: Remembers context, user preferences, and mentioned entities across the session.
 
 ---
 
-## 🚀 Local Development (100% Free)
+## 🚀 Local Development
 
-You can run this entire service on your laptop without any API keys or paid cloud accounts.
+You can run this entire service on your laptop.
 
 ### 1. Prerequisites
-- Python 3.12+ (Conda recommended)
-- [Ollama](https://ollama.com/download) installed locally.
+- Python 3.11 or 3.12 (Conda recommended — *Note: Python 3.14 is not fully supported by `scikit-learn` binaries yet*)
+- A Groq API Key
 
 ### 2. Setup
 Clone the repo and install dependencies:
@@ -84,88 +54,49 @@ conda activate autodrive
 pip install -r requirements.txt
 ```
 
-Download the local LLM model (Llama 3, ~4.7GB):
-```bash
-ollama pull llama3
-```
-
 ### 3. Environment Variables
 Copy the `.env.example` file to `.env`:
 ```bash
 cp .env.example .env
 ```
-Ensure your `.env` looks like this for free local mode:
+Ensure your `.env` looks like this:
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
-LLM_TEMPERATURE=0.3
-RETRIEVER_K=5
+GROQ_API_KEY=gsk_your_actual_key_here
+LLM_PROVIDER=groq
 PORT=8002
 ```
-*Note: Do NOT set `OPENAI_API_KEY` or `AZURE_*` keys if you want to use the free local mode.*
 
 ### 4. Run the Server
 ```bash
-python main.py
+python -m uvicorn src.main:app --host 127.0.0.1 --port 8002 --reload
 ```
 
 ### 5. Access the App
 - **Chat UI**: `http://localhost:8002/`
 - **API Swagger Docs**: `http://localhost:8002/docs`
-- **Health Check**: `http://localhost:8002/health`
+- **Pipeline Info**: `http://localhost:8002/pipeline/info`
 
 ---
 
-## ☁️ Production Deployment (Azure)
-
-When you are ready to deploy this to production, you do **not** need to change any code. The app automatically detects Azure environment variables and switches resources.
-
-### 1. Required Azure Variables
-In your production `.env` or Azure Container Apps secrets, supply:
-```env
-LLM_PROVIDER=azure
-AZURE_OPENAI_ENDPOINT="https://..."
-AZURE_OPENAI_KEY="sk-..."
-AZURE_SEARCH_ENDPOINT="https://..."
-AZURE_SEARCH_KEY="..."
-AZURE_SEARCH_INDEX="cars-index"
-REDIS_URL="redis://..."
-DATABASE_URL="postgresql://..." # For data ingestion
-```
-
-### 2. Deployment Steps
-Please refer to the `azure_deployment_guide.md` file in this directory for a step-by-step tutorial on:
-1. Creating Azure OpenAI & AI Search resources.
-2. Building and pushing the Docker image to Azure Container Registry.
-3. Deploying the image to Azure Container Apps.
-
----
-
-## 📁 Project Structure
+## 📁 Project Structure (v2.0)
 
 ```text
-chatbot/
-├── main.py                 # FastAPI application, UI routes, and Streaming endpoints
-├── rag.py                  # LangChain logic, System Prompt, and Embeddings/LLM factory
-├── history.py              # In-memory and Redis chat history management
-├── ingest.py               # Script to load data into FAISS or Azure AI Search
-├── config.py               # Auto-detects Local vs Azure mode based on .env
-├── seed_data.json          # 20 realistic cars for local testing
-├── requirements.txt        # Python dependencies
-├── Dockerfile              # Multi-stage build for Azure Container Apps
-├── azure_deployment_guide.md # Deployment guide
-└── static/
-    └── index.html          # Beautiful Vanilla JS/HTML Chat UI widget
+AutoDrive/
+├── src/
+│   ├── main.py                 # FastAPI application and v2 streaming endpoints
+│   ├── rag.py                  # Main RAGEngine v2.0 integrator
+│   ├── config.py               # Centralized settings and feature flags
+│   ├── agents/                 # CRAG, Self-RAG, and LangGraph definitions
+│   ├── cache/                  # Semantic caching
+│   ├── chunking/               # Late chunking, contextual, and 5 standard strategies
+│   ├── evaluation/             # Evaluation metrics and statistical tests
+│   ├── generation/             # Citations and grounding checkers
+│   ├── guardrails/             # Security and PII detection
+│   ├── knowledge/              # Knowledge Graph (NetworkX) builder and GraphRAG
+│   ├── memory/                 # Advanced session memory and context compression
+│   ├── query/                  # Intent classification and adaptive routing
+│   └── retrieval/              # Hybrid retrieval, FAISS, BM25, and Rerankers
+├── tests/                      # Unit tests
+├── requirements.txt            # Python dependencies (includes FAISS, Sentence-Transformers)
+└── verify_v2.py                # Verification script to test backend endpoints
 ```
-
----
-
-## 🧑‍💻 Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/` | Serves the HTML Chat UI |
-| `POST` | `/chat/stream` | Main endpoint. Streams SSE tokens for real-time chat. |
-| `POST` | `/chat` | Non-streaming endpoint for simple testing. |
-| `GET` | `/health` | Liveness probe for Kubernetes/Azure Container Apps. |
-| `GET` | `/ready` | Readiness probe (verifies RAG engine initialization). |

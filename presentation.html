@@ -99,12 +99,14 @@
 <div class="slide bg1 active">
   <div style="max-width:800px">
     <div class="eye">☁️ Cloud Computing · IIT Delhi · 2025JTM2079</div>
-    <h1><span class="grad">AutoDrive AI</span><br>Chatbot</h1>
-    <p class="sub">A production-grade, cloud-native RAG chatbot deployed on Microsoft Azure —<br>
-    demonstrating autoscaling, blue-green deployment, CI/CD, monitoring, IaC, and secrets management.</p>
+    <h1><span class="grad">AutoDrive AI v2.0</span><br>RAG Chatbot</h1>
+    <p class="sub">A state-of-the-art Agentic RAG chatbot deployed on Microsoft Azure —<br>
+    demonstrating Hybrid Search, Corrective RAG (CRAG), GraphRAG, and Azure CI/CD.</p>
     <div style="display:flex;gap:10px;margin-top:28px;flex-wrap:wrap">
       <span class="badge bb">Azure App Service S1</span>
-      <span class="badge bv">Groq LLaMA 3.3-70B</span>
+      <span class="badge bv">LLaMA 3.3-70B</span>
+      <span class="badge cc">Hybrid FAISS+BM25</span>
+      <span class="badge cr">Agentic CRAG</span>
       <span class="badge bg">Terraform IaC</span>
       <span class="badge bo">4-Stage CI/CD</span>
       <span class="badge bb">Application Insights</span>
@@ -125,15 +127,15 @@
   <h2>What We <span class="grad">Built</span></h2>
   <div class="c2" style="align-items:start;gap:28px">
     <div>
-      <p style="font-size:15px;color:var(--text);margin-bottom:18px">An AI car-shopping assistant for <strong>AutoDrive</strong> — a live Indian pre-owned car marketplace — that answers real inventory questions, compares cars in ₹, and books test drives. Three Azure student accounts collaborating in one live system.</p>
+      <p style="font-size:15px;color:var(--text);margin-bottom:18px">An AI car-shopping assistant for <strong>AutoDrive</strong> — a live Indian pre-owned car marketplace. Upgraded to RAG v2.0 for maximum accuracy and zero hallucination.</p>
       <ul class="ck">
-        <li>Live inventory sync from friend's PostgreSQL via REST API</li>
+        <li><strong>RAG v2.0:</strong> Hybrid Retrieval (Dense FAISS + Sparse BM25 + Reciprocal Rank Fusion)</li>
+        <li><strong>Zero Hallucination:</strong> Agentic CRAG + Cross-encoder Re-ranking</li>
+        <li><strong>GraphRAG:</strong> NetworkX Knowledge Graph for multi-hop queries</li>
+        <li>Live inventory sync from PostgreSQL via REST API</li>
         <li>Streaming LLM responses (Server-Sent Events, first token &lt;1s)</li>
         <li>Voice input (Groq Whisper STT) + browser audio output (TTS)</li>
-        <li>Floating chat widget integrated in friend's Next.js frontend</li>
-        <li>Deep-link: bot names a car → one click → car details page</li>
         <li>Test drive booking widget embedded inline in chat</li>
-        <li>Chatbot answers in ₹ — Maruti, Hyundai, Tata, etc.</li>
       </ul>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
