@@ -615,6 +615,11 @@ class RAGEngine:
             # Build inventory context for the agent
             context = await _inventory.get_context(user_msg)
 
+            # Ensure hybrid index is built before passing to tools
+            cars = await _inventory.get()
+            if self._hybrid_retriever is None or len(self._hybrid_retriever) == 0:
+                await self._build_hybrid_index(cars)
+
             # Initialize tools with retriever
             tools = AgentTools(
                 retriever=self._hybrid_retriever,

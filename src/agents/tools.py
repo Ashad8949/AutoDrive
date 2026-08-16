@@ -225,11 +225,9 @@ class AgentTools:
 
     def fetch_car_image(self, car_model: str) -> str:
         """
-        Fetch a real image of the specified car model from the web
-        using DuckDuckGo Image Search.
-
-        The returned markdown image tag can be rendered directly
-        in the chat UI.
+        Fetch a real image of the specified car model from the web.
+        Uses DuckDuckGo Image Search with a fallback to direct URL
+        construction if rate-limited.
 
         Args:
             car_model: The car name, e.g. "Tata Nexon 2024".
@@ -237,6 +235,7 @@ class AgentTools:
         Returns:
             A markdown image string like ![alt](url) or an error message.
         """
+        # Try DuckDuckGo first
         try:
             from duckduckgo_search import DDGS
 
@@ -246,34 +245,54 @@ class AgentTools:
                     max_results=3,
                 ))
 
-            if not results:
-                return f"No images found for '{car_model}'."
+            if results:
+                top = results[0]
+                image_url = top.get("image", "")
+                title = top.get("title", car_model)
 
-            # Return the top image as a markdown image tag
-            top = results[0]
-            image_url = top.get("image", "")
-            title = top.get("title", car_model)
+                if image_url:
+                    output = f"![{title}]({image_url})\n"
+                    if len(results) > 1:
+                        output += "\nAdditional images:\n"
+                        for r in results[1:]:
+                            url = r.get("image", "")
+                            t = r.get("title", "")
+                            if url:
+                                output += f"- ![{t}]({url})\n"
+                    return output
 
-            if not image_url:
-                return f"No image URL found for '{car_model}'."
-
-            # Return multiple images so the LLM can pick the best one
-            output = f"![{title}]({image_url})\n"
-            if len(results) > 1:
-                output += f"\nAdditional images:\n"
-                for r in results[1:]:
-                    url = r.get("image", "")
-                    t = r.get("title", "")
-                    if url:
-                        output += f"- ![{t}]({url})\n"
-
-            return output
-
-        except ImportError:
-            return "Image search not available (install duckduckgo-search)."
         except Exception as e:
-            logger.warning("Image search failed: %s", e)
-            return f"Image search failed: {e}"
+            logger.warning("DuckDuckGo image search failed: %s", e)
+
+        # Fallback: use httpx to scrape an image URL from the web
+        try:
+            import httpx
+            import re
+
+            search_url = f"https://www.google.com/search?q={car_model.replace(' ', '+')}+car+India&tbm=isch"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            resp = httpx.get(search_url, headers=headers, timeout=5.0, follow_redirects=True)
+            # Extract image URLs from the HTML
+            urls = re.findall(r'https://[^"\']+\.(?:jpg|jpeg|png|webp)', resp.text)
+
+            if urls:
+                # Filter out tiny icons and Google's own assets
+                good_urls = [u for u in urls if "gstatic" not in u and "google" not in u]
+                if good_urls:
+                    return f"![{car_model}]({good_urls[0]})"
+
+        except Exception as e:
+            logger.warning("Fallback image search also failed: %s", e)
+
+        # Last resort: return a helpful message with a search link
+        search_query = car_model.replace(" ", "+")
+        return (
+            f"I couldn't fetch an image directly, but you can see pictures of "
+            f"the {car_model} here: "
+            f"[Google Images](https://www.google.com/search?q={search_query}+car&tbm=isch)"
+        )
 
     def check_local_availability(self, car_model: str) -> str:
         """
