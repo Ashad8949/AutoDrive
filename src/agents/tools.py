@@ -4,7 +4,7 @@ Tool definitions for the LangGraph agentic RAG system.
 
 Each tool is a callable function that the agent can invoke during
 multi-step reasoning. Tools cover inventory search, comparison,
-details lookup, booking, and web search fallback.
+details lookup, booking, web search, and image retrieval.
 """
 
 from __future__ import annotations
@@ -39,6 +39,8 @@ class AgentTools:
         self.retriever = retriever
         self.metadata_filter = metadata_filter
         self.inventory_cache = inventory_cache
+
+    # ── Core Inventory Tools ────────────────────────────────────────
 
     def search_inventory(
         self,
@@ -147,9 +149,12 @@ class AgentTools:
         """
         return f"[ACTION: BOOK_TEST_DRIVE {car_id}]"
 
+    # ── Web Search Tools (NEW — Agentic v2.0) ──────────────────────
+
     def web_search(self, query: str) -> str:
         """
         Perform a web search for information not in the local knowledge base.
+        Uses DuckDuckGo (free, no API key required).
 
         Args:
             query: Search query.
@@ -181,43 +186,191 @@ class AgentTools:
             logger.warning("Web search failed: %s", e)
             return f"Web search failed: {e}"
 
+    def web_search_car_specs(self, car_model: str) -> str:
+        """
+        Search the web for detailed specifications of a specific car model.
+        Useful when the local database lacks technical details like engine BHP,
+        top speed, safety ratings, etc.
+
+        Args:
+            car_model: The car name, e.g. "Hyundai Creta 2024".
+
+        Returns:
+            Formatted specifications from the web.
+        """
+        query = f"{car_model} specifications features review India"
+        try:
+            from duckduckgo_search import DDGS
+
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=3))
+
+            if not results:
+                return f"No web specifications found for '{car_model}'."
+
+            output = [f"## Web Specifications for {car_model}\n"]
+            for r in results:
+                output.append(
+                    f"**{r.get('title', '')}**\n"
+                    f"{r.get('body', '')}\n"
+                    f"Source: {r.get('href', '')}"
+                )
+            return "\n\n".join(output)
+
+        except ImportError:
+            return "Web search not available (install duckduckgo-search)."
+        except Exception as e:
+            logger.warning("Web specs search failed: %s", e)
+            return f"Web specs search failed: {e}"
+
+    def fetch_car_image(self, car_model: str) -> str:
+        """
+        Fetch a real image of the specified car model from the web
+        using DuckDuckGo Image Search.
+
+        The returned markdown image tag can be rendered directly
+        in the chat UI.
+
+        Args:
+            car_model: The car name, e.g. "Tata Nexon 2024".
+
+        Returns:
+            A markdown image string like ![alt](url) or an error message.
+        """
+        try:
+            from duckduckgo_search import DDGS
+
+            with DDGS() as ddgs:
+                results = list(ddgs.images(
+                    f"{car_model} car official India",
+                    max_results=3,
+                ))
+
+            if not results:
+                return f"No images found for '{car_model}'."
+
+            # Return the top image as a markdown image tag
+            top = results[0]
+            image_url = top.get("image", "")
+            title = top.get("title", car_model)
+
+            if not image_url:
+                return f"No image URL found for '{car_model}'."
+
+            # Return multiple images so the LLM can pick the best one
+            output = f"![{title}]({image_url})\n"
+            if len(results) > 1:
+                output += f"\nAdditional images:\n"
+                for r in results[1:]:
+                    url = r.get("image", "")
+                    t = r.get("title", "")
+                    if url:
+                        output += f"- ![{t}]({url})\n"
+
+            return output
+
+        except ImportError:
+            return "Image search not available (install duckduckgo-search)."
+        except Exception as e:
+            logger.warning("Image search failed: %s", e)
+            return f"Image search failed: {e}"
+
+    def check_local_availability(self, car_model: str) -> str:
+        """
+        Check if a specific car model is available in our local inventory
+        (FAISS/BM25 database or seed data).
+
+        Args:
+            car_model: The car model name, e.g. "Hyundai Creta".
+
+        Returns:
+            Availability status and matching cars from local inventory.
+        """
+        if self.retriever:
+            results = self.retriever.search(car_model, top_k=5)
+            if not results:
+                return (
+                    f"'{car_model}' is NOT currently available in our inventory. "
+                    "Please check back later or explore similar cars."
+                )
+
+            # Filter results that actually match the queried model
+            output = [f"## Local Inventory Results for '{car_model}'\n"]
+            for r in results:
+                output.append(f"[Score: {r['score']:.3f}] {r['text'][:400]}")
+            return "\n\n".join(output)
+
+        return "Inventory search is not available right now."
+
+    # ── Tool Definitions (for LLM Function Calling) ─────────────────
+
     def get_tool_definitions(self) -> list[dict]:
         """
-        Return tool definitions for LangChain/LangGraph binding.
+        Return tool definitions for LLM function calling / tool binding.
 
         Returns:
             List of tool definition dicts compatible with LLM tool binding.
         """
         return [
             {
+                "name": "check_local_availability",
+                "description": (
+                    "Check if a car model is available in our local AutoDrive "
+                    "inventory. Use this FIRST for any availability question."
+                ),
+                "parameters": {
+                    "car_model": "string: car model name, e.g. 'Hyundai Creta'",
+                },
+            },
+            {
                 "name": "search_inventory",
-                "description": "Search the car inventory using natural language. "
-                               "Use when the user is looking for cars matching certain criteria.",
+                "description": (
+                    "Search the car inventory using natural language. "
+                    "Use when the user is looking for cars matching certain criteria."
+                ),
                 "parameters": {
                     "query": "string: search query",
                     "top_k": "integer: number of results (default 5)",
                 },
             },
             {
+                "name": "fetch_car_image",
+                "description": (
+                    "Fetch a real photo of the specified car model from the web. "
+                    "Use when the user asks to SEE a car, wants a picture, or says "
+                    "'show me', 'what does it look like', etc."
+                ),
+                "parameters": {
+                    "car_model": "string: car model name, e.g. 'Tata Nexon 2024'",
+                },
+            },
+            {
+                "name": "web_search_car_specs",
+                "description": (
+                    "Search the web for detailed car specifications (engine BHP, "
+                    "top speed, safety rating, etc.) that are NOT in our local "
+                    "database. Use when the user asks for technical details."
+                ),
+                "parameters": {
+                    "car_model": "string: car model name with optional year",
+                },
+            },
+            {
                 "name": "compare_cars",
-                "description": "Compare two or more cars side by side. "
-                               "Use when the user wants to compare specific cars.",
+                "description": (
+                    "Compare two or more cars side by side. "
+                    "Use when the user wants to compare specific cars."
+                ),
                 "parameters": {
                     "car_ids": "list of strings: car IDs to compare",
                 },
             },
             {
-                "name": "get_car_details",
-                "description": "Get full details about a specific car. "
-                               "Use when the user asks about a particular car by ID.",
-                "parameters": {
-                    "car_id": "string: car ID",
-                },
-            },
-            {
                 "name": "book_test_drive",
-                "description": "Book a test drive for a specific car. "
-                               "Use when the user wants to schedule a test drive.",
+                "description": (
+                    "Book a test drive for a specific car. "
+                    "Use when the user wants to schedule a test drive."
+                ),
                 "parameters": {
                     "car_id": "string: car ID to test drive",
                     "preferred_date": "string: preferred date (optional)",
@@ -225,8 +378,10 @@ class AgentTools:
             },
             {
                 "name": "web_search",
-                "description": "Search the web for information not available in inventory. "
-                               "Use as a last resort when local knowledge is insufficient.",
+                "description": (
+                    "General web search for any information not available locally. "
+                    "Use as a LAST RESORT when other tools are insufficient."
+                ),
                 "parameters": {
                     "query": "string: web search query",
                 },
@@ -251,6 +406,9 @@ class AgentTools:
             "check_market_value": self.check_market_value,
             "book_test_drive": self.book_test_drive,
             "web_search": self.web_search,
+            "web_search_car_specs": self.web_search_car_specs,
+            "fetch_car_image": self.fetch_car_image,
+            "check_local_availability": self.check_local_availability,
         }
 
         tool_func = tool_map.get(tool_name)

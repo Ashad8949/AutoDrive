@@ -582,6 +582,69 @@ class RAGEngine:
         if self._memory and session_id and full_response:
             self._memory.add_ai_message(session_id, full_response)
 
+    async def stream_response_agent(
+        self, user_msg: str, chat_history: list, session_id: str = ""
+    ):
+        """
+        Agentic streaming pipeline with ReAct tool calling.
+        Routes to the ReAct agent when the query needs tools
+        (images, web specs, availability checks), otherwise
+        falls back to the standard v2 pipeline.
+        """
+        from .agents import ReActAgent, AgentTools, should_use_agent
+
+        self._ensure_v2_components()
+
+        # Input guardrails
+        if self._guardrails:
+            check = self._guardrails.check_input(user_msg)
+            if not check["safe"]:
+                yield "I'm sorry, I can't process that request. Please rephrase your question."
+                return
+            user_msg = check["sanitized"]
+
+        # Semantic cache check
+        if self._semantic_cache:
+            cached = self._semantic_cache.get(user_msg)
+            if cached:
+                yield cached
+                return
+
+        # Decide: agent or standard pipeline?
+        if should_use_agent(user_msg):
+            # Build inventory context for the agent
+            context = await _inventory.get_context(user_msg)
+
+            # Initialize tools with retriever
+            tools = AgentTools(
+                retriever=self._hybrid_retriever,
+                inventory_cache=_inventory,
+            )
+
+            # Create and run the ReAct agent
+            agent = ReActAgent(
+                llm=self.llm,
+                tools=tools,
+                inventory_context=context,
+            )
+
+            full_response = ""
+            async for token in agent.run(user_msg, chat_history):
+                full_response += token
+                yield token
+
+            # Cache the response
+            if self._semantic_cache and full_response:
+                self._semantic_cache.put(user_msg, full_response)
+            if self._memory and session_id and full_response:
+                self._memory.add_ai_message(session_id, full_response)
+        else:
+            # Standard v2 pipeline (no tool calling needed)
+            async for token in self.stream_response_v2(
+                user_msg, chat_history, session_id
+            ):
+                yield token
+
     def get_pipeline_info(self) -> dict:
         """Return info about which v2.0 components are active."""
         self._ensure_v2_components()

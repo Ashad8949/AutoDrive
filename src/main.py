@@ -401,6 +401,50 @@ async def chat_stream_v2(body: ChatRequest):
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
+@app.post("/chat/agent/stream")
+async def chat_stream_agent(body: ChatRequest):
+    """
+    Agentic streaming chat — uses ReAct tool calling to:
+    - Check local inventory for availability
+    - Fetch car images from the web
+    - Search the web for detailed car specifications
+    Automatically falls back to standard v2 pipeline for simple queries.
+    """
+    session_id = body.session_id
+    user_msg = body.message
+
+    if not user_msg.strip():
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Message cannot be empty."},
+        )
+
+    rag = get_rag_engine()
+    history = get_history()
+
+    async def generate():
+        try:
+            full_response = ""
+
+            async for token in rag.stream_response_agent(
+                user_msg,
+                chat_history=history.get_messages(session_id, last_n=10),
+                session_id=session_id,
+            ):
+                full_response += token
+                yield f"data: {json.dumps({'token': token})}\n\n"
+
+            history.add_user_message(session_id, user_msg)
+            history.add_ai_message(session_id, full_response)
+            yield f"data: {json.dumps({'done': True, 'version': 'agent'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"[{session_id[:8]}] Agent Error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 @app.get("/pipeline/info")
 async def pipeline_info():
     """Return information about which RAG v2.0 components are active."""
