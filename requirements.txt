@@ -13,9 +13,25 @@ langchain-community>=0.4.0,<1.0.0
 langchain-core>=1.2.18,<2.0.0
 langchain-groq>=0.2.0
 
-# ── Vector Store (Local) ───────────────────────────
-faiss-cpu==1.9.0.post1
+# ── RAG v2.0: Dense Retrieval & Embeddings ─────────
+sentence-transformers>=3.0.0
+faiss-cpu>=1.9.0
+
+# ── RAG v2.0: Sparse Retrieval (BM25) ─────────────
+rank-bm25>=0.2.2
+
+# ── RAG v2.0: NLP Utilities ───────────────────────
+nltk>=3.9.0
 scikit-learn==1.5.2
+
+# ── RAG v2.0: Knowledge Graph ─────────────────────
+networkx>=3.3
+
+# ── RAG v2.0: Evaluation & Statistics ─────────────
+scipy>=1.14.0
+
+# ── RAG v2.0: Web Search Fallback (CRAG) ──────────
+duckduckgo-search>=6.0.0
 
 # ── Azure Services (optional — for production) ────
 azure-search-documents==11.6.0b8

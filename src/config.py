@@ -62,6 +62,31 @@ class Settings:
         os.path.join(_ROOT, "faiss_index"),
     )
 
+    # ── RAG v2.0: Retrieval ────────────────────────────────────────
+    DENSE_MODEL: str = os.getenv("DENSE_MODEL", "all-MiniLM-L6-v2")
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    FUSION_STRATEGY: str = os.getenv("FUSION_STRATEGY", "rrf")  # rrf, weighted, dbsf
+    FUSION_ALPHA: float = float(os.getenv("FUSION_ALPHA", "0.7"))
+
+    # ── RAG v2.0: Chunking ────────────────────────────────────────
+    CHUNK_STRATEGY: str = os.getenv("CHUNK_STRATEGY", "recursive")
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
+
+    # ── RAG v2.0: Semantic Cache ──────────────────────────────────
+    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
+    CACHE_TTL: int = int(os.getenv("CACHE_TTL", "3600"))
+    CACHE_SIMILARITY_THRESHOLD: float = float(os.getenv("CACHE_SIMILARITY_THRESHOLD", "0.92"))
+
+    # ── RAG v2.0: Knowledge Graph ─────────────────────────────────
+    KG_ENABLED: bool = os.getenv("KG_ENABLED", "true").lower() == "true"
+
+    # ── RAG v2.0: Index Persistence ───────────────────────────────
+    HYBRID_INDEX_PATH: str = os.getenv(
+        "HYBRID_INDEX_PATH",
+        os.path.join(_ROOT, "hybrid_index"),
+    )
+
     @property
     def is_azure(self) -> bool:
         return bool(self.AZURE_OPENAI_KEY and self.AZURE_OPENAI_ENDPOINT)
