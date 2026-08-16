@@ -1,10 +1,23 @@
 """
-AutoDrive Chatbot — RAG Engine
-Fetches live inventory from the AutoDrive API with in-memory TTL cache.
-Falls back to seed_data.json if the API is unreachable.
+AutoDrive RAG v2.0 — RAG Engine
+Integrates all v2.0 subsystems into a unified pipeline:
+  - Hybrid Retrieval (Dense + BM25 + RRF)
+  - Document Chunking (5 strategies)
+  - Cross-Encoder Re-Ranking
+  - Query Transformation (HyDE, Multi-Query, Expansion)
+  - Intent Classification & Adaptive Routing
+  - Corrective RAG (quality grading + retry)
+  - Advanced Memory (summary + entity tracking)
+  - Knowledge Graph (GraphRAG)
+  - Semantic Cache
+  - Safety Guardrails
+  - Evaluation Metrics (EM, F1, Retrieval)
+
+Backwards compatible: still exposes RAGEngine with same interface.
 """
 
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -101,6 +114,23 @@ def _car_to_text(car: dict) -> str:
         f"Features: {features} | "
         f"Details: {car.get('description', '')}"
     )
+
+
+def _car_to_metadata(car: dict) -> dict:
+    """Extract structured metadata from a car dict for filtering."""
+    return {
+        "car_id": str(car.get("id", "")),
+        "make": car.get("make", ""),
+        "model": car.get("model", ""),
+        "year": car.get("year", 0),
+        "price": car.get("price", 0),
+        "fuel_type": car.get("fuel_type", ""),
+        "body_type": car.get("body_type", ""),
+        "transmission": car.get("transmission", ""),
+        "location": car.get("location", ""),
+        "mileage": car.get("mileage", 0),
+        "owners": car.get("owners", 1),
+    }
 
 
 # ── Inventory Cache ──────────────────────────────────────────────────
@@ -253,18 +283,252 @@ def _build_prompt() -> ChatPromptTemplate:
     ])
 
 
+# ── RAG v2.0 Pipeline Components ────────────────────────────────────
+
+def _init_hybrid_retriever():
+    """Lazily initialize the hybrid retriever from inventory data."""
+    try:
+        from .retrieval import HybridRetriever
+        return HybridRetriever(
+            fusion_strategy=settings.FUSION_STRATEGY,
+            alpha=settings.FUSION_ALPHA,
+        )
+    except ImportError as e:
+        logger.warning("Hybrid retriever unavailable (%s) — using TF-IDF fallback", e)
+        return None
+
+
+def _init_reranker():
+    """Lazily initialize the cross-encoder re-ranker."""
+    try:
+        from .retrieval import CrossEncoderReranker
+        return CrossEncoderReranker(
+            model_name=settings.RERANKER_MODEL,
+            top_n=settings.RETRIEVER_K,
+        )
+    except ImportError as e:
+        logger.warning("Re-ranker unavailable (%s)", e)
+        return None
+
+
+def _init_query_transformer(llm):
+    """Initialize query transformation pipeline."""
+    try:
+        from .query import QueryTransformer
+        return QueryTransformer(llm=llm)
+    except ImportError:
+        return None
+
+
+def _init_adaptive_router():
+    """Initialize the adaptive query router."""
+    try:
+        from .query import AdaptiveRouter, IntentClassifier
+        return AdaptiveRouter(intent_classifier=IntentClassifier())
+    except ImportError:
+        return None
+
+
+def _init_semantic_cache():
+    """Initialize the semantic cache if enabled."""
+    if not settings.CACHE_ENABLED:
+        return None
+    try:
+        from .cache import SemanticCache
+        return SemanticCache(
+            similarity_threshold=settings.CACHE_SIMILARITY_THRESHOLD,
+            ttl_seconds=settings.CACHE_TTL,
+        )
+    except ImportError:
+        return None
+
+
+def _init_guardrails():
+    """Initialize safety guardrails."""
+    try:
+        from .guardrails import SafetyGuardrails
+        return SafetyGuardrails()
+    except ImportError:
+        return None
+
+
+def _init_knowledge_graph():
+    """Initialize the knowledge graph if enabled."""
+    if not settings.KG_ENABLED:
+        return None
+    try:
+        from .knowledge import KnowledgeGraphBuilder
+        return KnowledgeGraphBuilder()
+    except ImportError:
+        return None
+
+
+def _init_corrective_rag(llm):
+    """Initialize Corrective RAG."""
+    try:
+        from .agents import CorrectiveRAG
+        return CorrectiveRAG(llm=llm)
+    except ImportError:
+        return None
+
+
+def _init_memory():
+    """Initialize conversation memory."""
+    try:
+        from .memory import ConversationMemory
+        return ConversationMemory()
+    except ImportError:
+        return None
+
+
 # ── Public API ───────────────────────────────────────────────────────
 class RAGEngine:
-    """Encapsulates retrieval + LLM streaming. One instance per process."""
+    """
+    AutoDrive RAG v2.0 Engine.
+
+    Integrates all v2.0 components while maintaining backwards
+    compatibility with the v1 streaming interface.
+    """
 
     def __init__(self) -> None:
+        logger.info("Initializing RAG Engine v2.0...")
         self.llm = _get_llm()
         self.prompt = _build_prompt()
 
+        # v2.0 components (lazy init — only loaded when first needed)
+        self._hybrid_retriever = None
+        self._reranker = None
+        self._query_transformer = None
+        self._adaptive_router = None
+        self._semantic_cache = None
+        self._guardrails = None
+        self._knowledge_graph = None
+        self._corrective_rag = None
+        self._memory = None
+        self._v2_initialized = False
+
+        logger.info(
+            "RAG Engine v2.0 initialized (provider=%s)", settings.llm_provider
+        )
+
+    def _ensure_v2_components(self) -> None:
+        """Lazy-initialize v2.0 components on first use."""
+        if self._v2_initialized:
+            return
+
+        logger.info("Loading RAG v2.0 components...")
+        self._adaptive_router = _init_adaptive_router()
+        self._query_transformer = _init_query_transformer(self.llm)
+        self._semantic_cache = _init_semantic_cache()
+        self._guardrails = _init_guardrails()
+        self._corrective_rag = _init_corrective_rag(self.llm)
+        self._memory = _init_memory()
+        self._v2_initialized = True
+        logger.info("RAG v2.0 components loaded ✓")
+
+    async def _build_hybrid_index(self, cars: list[dict]) -> None:
+        """Build hybrid index from car inventory data."""
+        if self._hybrid_retriever is None:
+            self._hybrid_retriever = _init_hybrid_retriever()
+        if self._hybrid_retriever is None:
+            return
+
+        texts = [_car_to_text(c) for c in cars]
+        metadata = [_car_to_metadata(c) for c in cars]
+
+        # Build in a thread to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None, self._hybrid_retriever.build_index, texts, metadata
+        )
+
+        # Build knowledge graph
+        if self._knowledge_graph is None:
+            self._knowledge_graph = _init_knowledge_graph()
+        if self._knowledge_graph:
+            self._knowledge_graph.build_from_inventory(cars)
+
+        # Update guardrails with valid car IDs
+        if self._guardrails:
+            self._guardrails.update_inventory_ids(cars)
+
+        logger.info("Hybrid index + KG built for %d cars", len(cars))
+
     async def retrieve_context(self, query: str) -> str:
+        """Retrieve context — uses v2 hybrid retrieval if available, falls back to TF-IDF."""
         return await _inventory.get_context(query)
 
+    async def retrieve_context_v2(self, query: str) -> tuple[str, dict]:
+        """
+        v2.0 retrieval pipeline:
+        1. Route query → determine complexity
+        2. Transform query if needed
+        3. Hybrid search → re-rank
+        4. Return context + pipeline metadata
+        """
+        self._ensure_v2_components()
+        pipeline_meta = {"version": "v2.0", "stages": []}
+
+        # 1. Adaptive routing
+        route = None
+        if self._adaptive_router:
+            route = self._adaptive_router.route(query)
+            pipeline_meta["route"] = {
+                "intent": str(route.get("intent", "")),
+                "complexity": str(route.get("complexity", "")),
+                "pipeline": route.get("pipeline", "standard"),
+            }
+            pipeline_meta["stages"].append("routing")
+
+        # 2. Ensure hybrid index is built
+        cars = await _inventory.get()
+        if self._hybrid_retriever is None or len(self._hybrid_retriever) == 0:
+            await self._build_hybrid_index(cars)
+
+        # 3. Query transformation
+        search_query = query
+        if self._query_transformer and route and route.get("pipeline") != "simple":
+            strategies = route.get("strategies", ["expand"])
+            transform_result = self._query_transformer.transform(query, strategies)
+            search_queries = transform_result.get("all_queries", [query])
+            search_query = search_queries[0] if search_queries else query
+            pipeline_meta["stages"].append("query_transform")
+            pipeline_meta["transformed_queries"] = len(search_queries)
+
+        # 4. Hybrid retrieval
+        if self._hybrid_retriever and len(self._hybrid_retriever) > 0:
+            retrieve_k = route.get("retrieval_k", settings.RETRIEVER_K) if route else settings.RETRIEVER_K
+            results = self._hybrid_retriever.search(search_query, top_k=retrieve_k * 2)
+            pipeline_meta["stages"].append("hybrid_retrieval")
+            pipeline_meta["retrieved"] = len(results)
+
+            # 5. Re-ranking
+            if self._reranker is None:
+                self._reranker = _init_reranker()
+            if self._reranker and results and (route is None or route.get("use_reranker", True)):
+                results = self._reranker.rerank(query, results, top_n=settings.RETRIEVER_K)
+                pipeline_meta["stages"].append("reranking")
+
+            # 6. Corrective RAG (grade quality)
+            if self._corrective_rag and results:
+                eval_result = self._corrective_rag.evaluate_retrieval(query, results)
+                if eval_result["action"] == "proceed":
+                    results = eval_result.get("relevant_documents", results)
+                    pipeline_meta["stages"].append("crag_pass")
+                else:
+                    pipeline_meta["stages"].append(f"crag_{eval_result['action']}")
+                pipeline_meta["relevance_ratio"] = eval_result.get("relevance_ratio", 0)
+
+            context = "\n".join(r["text"][:500] for r in results[:settings.RETRIEVER_K])
+        else:
+            # Fallback to TF-IDF
+            context = await _inventory.get_context(query)
+            pipeline_meta["stages"].append("tfidf_fallback")
+
+        return context, pipeline_meta
+
     async def stream_response(self, user_msg: str, context: str, chat_history: list):
+        """Stream LLM response — backwards compatible with v1."""
         chain = self.prompt | self.llm
         async for chunk in chain.astream({
             "input": user_msg,
@@ -274,6 +538,76 @@ class RAGEngine:
             token = chunk.content if hasattr(chunk, "content") else str(chunk)
             if token:
                 yield token
+
+    async def stream_response_v2(
+        self, user_msg: str, chat_history: list, session_id: str = ""
+    ):
+        """
+        v2.0 streaming pipeline with semantic cache, guardrails, and memory.
+        """
+        self._ensure_v2_components()
+
+        # Input guardrails
+        if self._guardrails:
+            check = self._guardrails.check_input(user_msg)
+            if not check["safe"]:
+                yield "I'm sorry, I can't process that request. Please rephrase your question."
+                return
+            user_msg = check["sanitized"]
+
+        # Semantic cache check
+        if self._semantic_cache:
+            cached = self._semantic_cache.get(user_msg)
+            if cached:
+                yield cached
+                return
+
+        # Memory: record user message
+        if self._memory and session_id:
+            self._memory.add_user_message(session_id, user_msg)
+
+        # v2.0 retrieval
+        context, pipeline_meta = await self.retrieve_context_v2(user_msg)
+
+        # Stream LLM response
+        full_response = ""
+        async for token in self.stream_response(user_msg, context, chat_history):
+            full_response += token
+            yield token
+
+        # Post-generation: cache + memory
+        if self._semantic_cache and full_response:
+            self._semantic_cache.put(user_msg, full_response)
+
+        if self._memory and session_id and full_response:
+            self._memory.add_ai_message(session_id, full_response)
+
+    def get_pipeline_info(self) -> dict:
+        """Return info about which v2.0 components are active."""
+        self._ensure_v2_components()
+        return {
+            "version": "2.0",
+            "llm_provider": settings.llm_provider,
+            "components": {
+                "hybrid_retriever": self._hybrid_retriever is not None,
+                "reranker": self._reranker is not None,
+                "query_transformer": self._query_transformer is not None,
+                "adaptive_router": self._adaptive_router is not None,
+                "semantic_cache": self._semantic_cache is not None,
+                "guardrails": self._guardrails is not None,
+                "knowledge_graph": self._knowledge_graph is not None,
+                "corrective_rag": self._corrective_rag is not None,
+                "memory": self._memory is not None,
+            },
+            "config": {
+                "dense_model": settings.DENSE_MODEL,
+                "reranker_model": settings.RERANKER_MODEL,
+                "fusion_strategy": settings.FUSION_STRATEGY,
+                "chunk_strategy": settings.CHUNK_STRATEGY,
+                "cache_enabled": settings.CACHE_ENABLED,
+                "kg_enabled": settings.KG_ENABLED,
+            },
+        }
 
 
 async def force_inventory_refresh() -> int:

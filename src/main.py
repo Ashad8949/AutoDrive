@@ -63,11 +63,12 @@ async def _inventory_refresh_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=" * 60)
-    logger.info("  AutoDrive Chatbot v1.0.0")
+    logger.info("  AutoDrive Chatbot v2.0.0")
     logger.info(f"  LLM Provider : {settings.llm_provider}")
     logger.info(f"  Inventory    : {os.getenv('INVENTORY_API_URL', 'https://autodriveai.duckdns.org/api/cars')}")
     logger.info(f"  Mode         : {'AZURE' if settings.is_azure else 'LOCAL'}")
     logger.info(f"  History      : {'Redis' if settings.has_redis else 'In-Memory'}")
+    logger.info(f"  RAG Version  : v2.0 (Hybrid + Re-rank + CRAG)")
     logger.info(f"  Port         : {settings.PORT}")
     logger.info("=" * 60)
     # Warm up inventory cache at startup so first request is fast
@@ -85,8 +86,8 @@ async def lifespan(app: FastAPI):
 # ── FastAPI App ─────────────────────────────────────────────────────
 app = FastAPI(
     title="AutoDrive Chatbot",
-    description="LLM-powered RAG chatbot for AutoDrive car dealership",
-    version="1.0.0",
+    description="LLM-powered RAG v2.0 chatbot for AutoDrive car dealership — Hybrid Retrieval, Re-ranking, CRAG, Knowledge Graph, Semantic Cache",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -216,7 +217,7 @@ async def health():
         "status": "healthy",
         "slot": os.getenv("SLOT_NAME", "production"),
         "provider": settings.llm_provider,
-        "version": "1.0.0",
+        "version": "2.0.0",
     }
 
 
@@ -337,6 +338,102 @@ async def chat(body: ChatRequest):
         "session_id": session_id,
         "response": full_response,
     }
+
+
+# ── RAG v2.0 Endpoints ─────────────────────────────────────────────
+
+@app.post("/chat/v2/stream")
+async def chat_stream_v2(body: ChatRequest):
+    """
+    v2.0 streaming chat — uses hybrid retrieval, re-ranking, CRAG,
+    adaptive routing, semantic cache, and guardrails.
+    """
+    session_id = body.session_id
+    user_msg = body.message
+
+    if not user_msg.strip():
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Message cannot be empty."},
+        )
+
+    rag = get_rag_engine()
+    history = get_history()
+
+    async def generate():
+        try:
+            full_response = ""
+            tag_buffer = ""
+            in_tag = False
+
+            async for token in rag.stream_response_v2(
+                user_msg,
+                chat_history=history.get_messages(session_id, last_n=10),
+                session_id=session_id,
+            ):
+                if "[" in token or in_tag:
+                    in_tag = True
+                    tag_buffer += token
+                    if "]" in tag_buffer:
+                        in_tag = False
+                        m_action = re.search(r"\[ACTION:\s*(.*?)\]", tag_buffer)
+                        m_car = re.search(r"\[CAR_ID:\s*(\w+)\]", tag_buffer)
+                        if m_action:
+                            yield f"data: {json.dumps({'action': m_action.group(1).strip()})}\n\n"
+                        elif m_car:
+                            yield f"data: {json.dumps({'car_id': m_car.group(1).strip()})}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'token': tag_buffer})}\n\n"
+                            full_response += tag_buffer
+                        tag_buffer = ""
+                else:
+                    full_response += token
+                    yield f"data: {json.dumps({'token': token})}\n\n"
+
+            history.add_user_message(session_id, user_msg)
+            history.add_ai_message(session_id, full_response + tag_buffer)
+            yield f"data: {json.dumps({'done': True, 'version': 'v2.0'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"[{session_id[:8]}] v2 Error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/pipeline/info")
+async def pipeline_info():
+    """Return information about which RAG v2.0 components are active."""
+    rag = get_rag_engine()
+    return rag.get_pipeline_info()
+
+
+@app.get("/cache/stats")
+async def cache_stats():
+    """Return semantic cache hit/miss statistics."""
+    rag = get_rag_engine()
+    rag._ensure_v2_components()
+    if rag._semantic_cache:
+        return rag._semantic_cache.get_stats()
+    return {"cache_enabled": False}
+
+
+@app.post("/eval/run")
+async def run_evaluation(body: dict):
+    """
+    Run evaluation on a set of question-answer pairs.
+    Body: {"predictions": {"1": "answer1", ...}, "references": {"1": "ref1", ...}}
+    """
+    try:
+        from .evaluation import RAGMetrics
+        metrics = RAGMetrics()
+        results = metrics.evaluate_batch(
+            predictions=body.get("predictions", {}),
+            references=body.get("references", {}),
+        )
+        return results
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 if __name__ == "__main__":
