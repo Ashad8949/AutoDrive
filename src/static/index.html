@@ -350,10 +350,18 @@ function sendSuggestion(el) {
 function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
 function fmt(t) {
+    // Markdown images: ![alt](url) → <img> tag
+    t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:10px;margin:8px 0;cursor:pointer" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">');
+    // Bold
     t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic (single asterisk, but not inside bold)
+    t = t.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    // Inline code
     t = t.replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,.1);padding:2px 6px;border-radius:4px;font-size:13px">$1</code>');
+    // List items
     t = t.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
     t = t.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // Paragraphs
     t = t.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
     if (!t.startsWith('<')) t = '<p>' + t + '</p>';
     return t;
@@ -396,7 +404,7 @@ async function send(text) {
     let full = '';
 
     try {
-        const res = await fetch(API + '/chat/stream', {
+        const res = await fetch(API + '/chat/agent/stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ session_id: SID, message: msg }),
